@@ -1,5 +1,5 @@
 /* ============================================================
-   FollowMatch — application réelle (frontend)
+   FollowsMatch — application réelle (frontend)
    Branchée sur Supabase (auth + base + fonctions serveur).
    Modèle : ÉCHANGE CROISÉ — chacun choisit UN réseau-objectif ;
    je suis l'autre sur SON objectif, il me suit sur le MIEN.
@@ -196,7 +196,7 @@ async function doSignup(){
  const{data,error}=await sb.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname}});
  b.disabled=false;b.textContent='Créer mon compte';
  if(error){err(error.message&&error.message.toLowerCase().includes('already registered')?{message:'Un compte existe déjà avec cet e-mail — utilise l\'onglet « Se connecter ».'}:error);return}
- if(data&&data.session){toast('✅ Compte créé — bienvenue sur FollowMatch !')}
+ if(data&&data.session){toast('✅ Compte créé — bienvenue sur FollowsMatch !')}
  else toast('📬 Regarde ta boîte mail et clique le lien de confirmation, puis reviens te connecter.');
 }
 async function doLogin(){
@@ -242,7 +242,7 @@ function vLanding(){
  const setup=CONFIGURED?'':'<div class="banner">⚙️ <b>Serveur non configuré</b> — le branchement Supabase n\'est pas encore fait (config.js). L\'interface est visible mais la connexion est désactivée.</div>';
  const mode=S._authMode||'signup';
  return `${setup}<div class="hero">
-   <div class="logo">FollowMatch</div>
+   <div class="logo">FollowsMatch</div>
    <h1>Gagne des abonnés<br>là où tu en as besoin</h1>
    <p class="sub">Swipe. Match. Grandis.</p>
    <div class="steps3">
@@ -312,7 +312,7 @@ async function obCreateAccounts(){
  if(chosen.length===0){toast('Coche au moins un réseau et renseigne ton @username 🙂');return}
  const rows=chosen.map(k=>({user_id:S.me.id,platform:k,username:S._nets[k].user.trim().replace(/^@/,''),follower_count:+(S._nets[k].fol||0)}));
  const{data,error}=await sb.from('social_accounts').insert(rows).select();
- if(error){err(error.code==='23505'?{message:'Un de ces comptes est déjà utilisé sur FollowMatch'}:error);return}
+ if(error){err(error.code==='23505'?{message:'Un de ces comptes est déjà utilisé sur FollowsMatch'}:error);return}
  S.accts=data;S.acct=data[0];go('waitverif');
 }
 async function obFinish(){
@@ -373,7 +373,7 @@ function vSwipe(){
    </div>`;
    }).reverse().join('');
  return `<div class="wrap">
-   <div class="row"><span class="logo">FollowMatch</span><div class="spacer"></div>${admin}<span class="pill" style="background:${GOAL_BG}">🎯 Objectif : ${esc(pfLabel(myT))}</span></div>
+   <div class="row"><span class="logo">FollowsMatch</span><div class="spacer"></div>${admin}<span class="pill" style="background:${GOAL_BG}">🎯 Objectif : ${esc(pfLabel(myT))}</span></div>
    ${notifBanner()}
    <div class="deck">${cards}</div>
    ${d.length?`<div class="actions">

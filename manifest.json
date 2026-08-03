@@ -1,6 +1,6 @@
 {
-  "name": "FollowMatch",
-  "short_name": "FollowMatch",
+  "name": "FollowsMatch",
+  "short_name": "FollowsMatch",
   "description": "Gagne des abonnés en follow mutuel vérifié entre créateurs. Swipe, matche, échange croisé.",
   "lang": "fr",
   "dir": "ltr",

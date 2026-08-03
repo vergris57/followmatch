@@ -1,5 +1,5 @@
-/* FollowMatch — service worker : mode hors-ligne (coquille de l'app) + notifications push */
-const CACHE = 'fm-shell-v1';
+/* FollowsMatch — service worker : mode hors-ligne (coquille de l'app) + notifications push */
+const CACHE = 'fm-shell-v2';
 const SHELL = ['./', './index.html', './config.js', './supabase.js', './manifest.json',
                './icon-192.png', './icon-512.png'];
 
@@ -36,8 +36,8 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; }
-  catch (_) { d = { title: 'FollowMatch', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'FollowMatch', {
+  catch (_) { d = { title: 'FollowsMatch', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'FollowsMatch', {
     body: d.body || '',
     icon: './icon-192.png',
     badge: './icon-192.png',
