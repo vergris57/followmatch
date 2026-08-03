@@ -21,10 +21,22 @@ function left(t){if(!t)return'';const h=Math.max(0,Math.round((new Date(t)-Date.
 function toast(m){const d=document.createElement('div');d.className='toast';d.innerHTML=m;$('toasts').appendChild(d);setTimeout(()=>d.remove(),4500)}
 function err(e){console.error(e);const m=(e&&(e.message||e.error_description))||'Erreur inattendue';
  toast('⚠️ '+esc(m.includes('limite quotidienne')?'Limite de 20 likes/jour atteinte — reviens demain 🌙':m))}
-function tiktokUrl(u){return 'https://www.tiktok.com/@'+encodeURIComponent((u||'').replace(/^@/,''))}
+const PLATFORMS={
+ tiktok:   {label:'TikTok',    url:u=>'https://www.tiktok.com/@'+enc(u),      follow:'abonnés'},
+ instagram:{label:'Instagram', url:u=>'https://instagram.com/'+enc(u),        follow:'abonnés'},
+ snapchat: {label:'Snapchat',  url:u=>'https://www.snapchat.com/add/'+enc(u), follow:'amis'},
+ x:        {label:'X',          url:u=>'https://x.com/'+enc(u),                follow:'abonnés'}
+};
+const PLATFORM_LIST=[['tiktok','TikTok'],['instagram','Instagram'],['snapchat','Snapchat'],['x','X']];
+function enc(u){return encodeURIComponent((u||'').replace(/^@/,''))}
+function pfUrl(pf,u){return (PLATFORMS[pf]||PLATFORMS.tiktok).url(u)}
+function pfLabel(pf){return (PLATFORMS[pf]||PLATFORMS.tiktok).label}
+function pfFollow(pf){return (PLATFORMS[pf]||PLATFORMS.tiktok).follow}
 function myAcct(){return S.acct}
 function otherOf(m){return m.user_a===S.me.id?m.b:m.a}
-function otherUsername(m){const o=otherOf(m);const sa=(o.social_accounts||[]).find(x=>x.verification_status==='verified')||(o.social_accounts||[])[0];return sa?sa.username:''}
+function otherAcct(m){const o=otherOf(m);return (o.social_accounts||[]).find(x=>x.verification_status==='verified')||(o.social_accounts||[])[0]||{}}
+function otherUsername(m){return otherAcct(m).username||''}
+function otherPlatform(m){return otherAcct(m).platform||'tiktok'}
 function iAmA(m){return m.user_a===S.me.id}
 
 /* ---------- routing ---------- */
@@ -68,8 +80,8 @@ async function refreshDeck(){
 async function refreshMatches(){
  try{
   const q='id,status,user_a,user_b,expires_at,created_at,completed_at,step1_a_followed_at,step2_b_confirmed_at,step3_b_followed_back_at,step4_a_confirmed_at,expired_fault,'
-   +'a:profiles!matches_user_a_fkey(id,display_name,trust_score,social_accounts(username,verification_status)),'
-   +'b:profiles!matches_user_b_fkey(id,display_name,trust_score,social_accounts(username,verification_status))';
+   +'a:profiles!matches_user_a_fkey(id,display_name,trust_score,social_accounts(username,platform,verification_status)),'
+   +'b:profiles!matches_user_b_fkey(id,display_name,trust_score,social_accounts(username,platform,verification_status))';
   const{data,error}=await sb.from('matches').select(q).order('created_at',{ascending:false});if(error)throw error;
   S.matches=data||[];
  }catch(e){err(e)}
@@ -195,11 +207,12 @@ function vOnboarding(){
    <h2>Bienvenue 👋</h2><p class="sub mb16">Comment veux-tu apparaître ?</p>
    <div class="field"><label>Ton pseudo</label><input id="f-pseudo" maxlength="30" placeholder="ex. Jalal"></div>
    <button class="btn mt8" onclick="obSaveName()">Continuer</button></div>`;
- if(S.ob===2)return `<div class="wrap">${bar}
-   <h2>Connecte ton TikTok</h2><p class="sub mb16">On vérifie que le compte t'appartient — personne ne peut usurper le tien.</p>
-   <div class="field"><label>Ton @username TikTok</label><input id="f-tt" placeholder="@toncompte"></div>
-   <div class="field"><label>Tes abonnés TikTok (environ)</label><input id="f-fol" type="number" min="0" value="500"></div>
-   <button class="btn" onclick="obCreateAccount()">Générer mon code de vérification</button></div>`;
+ if(S.ob===2){const pf=S._platform||'tiktok';return `<div class="wrap">${bar}
+   <h2>Connecte ton compte</h2><p class="sub mb16">Choisis ton réseau — tu seras mis en relation avec des créateurs du <b>même réseau</b> (le follow mutuel se fait là où vous êtes tous les deux).</p>
+   <div class="field"><label>Ton réseau</label><div class="chips">${PLATFORM_LIST.map(([k,l])=>`<span class="chip ${pf===k?'on':''}" onclick="S._platform='${k}';go('onboarding')">${l}</span>`).join('')}</div></div>
+   <div class="field"><label>Ton @username ${pfLabel(pf)}</label><input id="f-tt" placeholder="@toncompte"></div>
+   <div class="field"><label>Tes ${pfFollow(pf)} (environ)</label><input id="f-fol" type="number" min="0" value="500"></div>
+   <button class="btn" onclick="obCreateAccount()">Générer mon code de vérification</button></div>`;}
  return `<div class="wrap">${bar}
    <h2>Ta niche</h2><p class="sub mb16">On ne te proposera que des créateurs de ton univers.</p>
    <div class="chips">${NICHES.map(n=>`<span class="chip ${S._niche===n?'on':''}" onclick="S._niche='${n}';go('onboarding')">${n}</span>`).join('')}</div>
@@ -213,10 +226,11 @@ async function obSaveName(){
  S.me.display_name=n;S.ob=2;go('onboarding');
 }
 async function obCreateAccount(){
+ const pf=S._platform||'tiktok';
  const u=$('f-tt').value.trim().replace(/^@/,'');const f=+($('f-fol').value||0);
- if(!u){toast('Renseigne ton @username TikTok');return}
- const{data,error}=await sb.from('social_accounts').insert({user_id:S.me.id,platform:'tiktok',username:u,follower_count:f}).select().single();
- if(error){err(error.code==='23505'?{message:'Ce compte TikTok est déjà utilisé sur FollowMatch'}:error);return}
+ if(!u){toast('Renseigne ton @username '+pfLabel(pf));return}
+ const{data,error}=await sb.from('social_accounts').insert({user_id:S.me.id,platform:pf,username:u,follower_count:f}).select().single();
+ if(error){err(error.code==='23505'?{message:'Ce compte '+pfLabel(pf)+' est déjà utilisé sur FollowMatch'}:error);return}
  S.acct=data;go('waitverif');
 }
 async function obFinish(){
@@ -230,7 +244,7 @@ async function obFinish(){
 function vWait(){
  return `<div class="wrap center" style="padding-top:40px">
    <div class="big">🕐</div><h2 class="mt8">Vérification de ton compte</h2>
-   <p class="sub mt8">Place ce code dans ta <b>bio TikTok</b> (${esc('@'+(S.acct?.username||''))}) — on vérifie sous 24h, souvent bien plus vite.</p>
+   <p class="sub mt8">Place ce code dans ta <b>bio ${pfLabel(S.acct?.platform)}</b> (${esc('@'+(S.acct?.username||''))})${(S.acct?.platform==='snapchat')?' — ou dans ton nom affiché si Snapchat ne permet pas de bio':''} — on vérifie sous 24h, souvent bien plus vite.</p>
    <div class="code">${esc(S.acct?.verification_code||'FM-....')}</div>
    <p class="sub">Statut : <b>${S.acct?.verification_status==='rejected'?'❌ refusé — code introuvable dans la bio':'en attente de vérification'}</b></p>
    <button class="btn mt16" onclick="checkVerif()">J'ai placé le code / Actualiser</button>
@@ -241,7 +255,7 @@ async function checkVerif(){
  const{data}=await sb.from('social_accounts').select('*').eq('id',S.acct.id).single();
  if(data)S.acct=data;
  if(S.acct.verification_status==='verified'){toast('✅ Compte vérifié !');route()}
- else{toast('Toujours en attente — l\'équipe vérifie ta bio TikTok au plus vite.');go('waitverif')}
+ else{toast('Toujours en attente — l\'équipe vérifie ta bio '+pfLabel(S.acct?.platform)+' au plus vite.');go('waitverif')}
 }
 
 /* ---------- swipe ---------- */
@@ -253,15 +267,16 @@ function vSwipe(){
    <div class="pcard ${i===1?'back1':i===2?'back2':''}" id="card-${p.user_id}" style="z-index:${9-i}">
      <div class="center"><div class="avatar" style="width:110px;height:110px;font-size:40px">${initials(p.display_name)}</div>
        <h2>@${esc(p.username)}</h2>
-       <div class="row mt8" style="justify-content:center;gap:8px">
+       <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
+         <span class="pill" style="background:var(--grad)">${esc(pfLabel(p.platform))}</span>
          <span class="pill" style="background:var(--panel2)">${esc(p.niche||'—')}</span>
-         <span class="pill" style="background:var(--panel2)">${fmtFol(p.follower_count)} abonnés</span>
+         <span class="pill" style="background:var(--panel2)">${fmtFol(p.follower_count)} ${pfFollow(p.platform)}</span>
        </div>
        <div class="mt8">${lvBadge(p.trust_score)}</div>
        <p class="sub mt16">${esc(p.bio)}</p>
      </div>
      <div class="spacer"></div>
-     <a class="sub center" style="text-decoration:none" href="${tiktokUrl(p.username)}" target="_blank" rel="noopener">Voir le profil TikTok ↗</a>
+     <a class="sub center" style="text-decoration:none" href="${pfUrl(p.platform,p.username)}" target="_blank" rel="noopener">Voir le profil ${esc(pfLabel(p.platform))} ↗</a>
    </div>`).reverse().join('');
  return `<div class="wrap">
    <div class="row"><span class="logo">FollowMatch</span><div class="spacer"></div>${admin}<span class="pill" style="background:var(--panel2)">🎯 ${esc(S.me?.niche||'')}</span></div>
@@ -339,7 +354,7 @@ function vMatches(){
  const sec=(t,arr)=>arr.length?`<h2 class="mt24" style="font-size:15px;color:var(--muted)">${t}</h2><div class="mt8">${arr.map(item).join('')}</div>`:'';
  const ret=retentionDue().map(({m,day})=>`<div class="card mt16" style="border-color:var(--warn)">
    <b>Contrôle fidélité (J${day})</b>
-   <p class="sub mt8">Est-ce que <b>@${esc(otherUsername(m))}</b> te suit toujours sur TikTok ?</p>
+   <p class="sub mt8">Est-ce que <b>@${esc(otherUsername(m))}</b> te suit toujours sur ${esc(pfLabel(otherPlatform(m)))} ?</p>
    <div class="row mt8"><button class="btn small" onclick="retAnswer('${m.id}',${day},true)">Oui ✔</button>
    <button class="btn ghost small" onclick="retAnswer('${m.id}',${day},false)">Non 🚩</button></div>
  </div>`).join('');
@@ -358,14 +373,15 @@ async function retAnswer(mid,day,still){
 function vDetail(){
  const m=S.matches.find(x=>x.id===S.curMatch);if(!m)return vMatches();
  const u='@'+esc(otherUsername(m));const o=otherOf(m);const A=iAmA(m);
+ const pf=otherPlatform(m);const lab=pfLabel(pf);const fol=pfFollow(pf);
  const steps=[
-  {t:(A?'1 · Tu suis ':'1 · '+u+' te suit')+(A?u:''), p:A?'Ouvre son TikTok, abonne-toi, puis déclare-le ici.':'Il/elle doit te suivre en premier.', done:!!m.step1_a_followed_at, cur:m.status==='pending_a_follow'},
-  {t:A?'2 · '+u+' confirme ton follow':'2 · Tu confirmes le follow reçu', p:A?'Il/elle vérifie ses abonnés.':'Vérifie tes abonnés TikTok et confirme ici.', done:!!m.step2_b_confirmed_at, cur:m.status==='pending_b_confirm'},
-  {t:A?'3 · '+u+' te suit en retour':'3 · Tu suis '+u+' en retour', p:A?'Et le déclare de son côté.':'Ouvre son TikTok, abonne-toi, déclare-le.', done:!!m.step3_b_followed_back_at, cur:m.status==='pending_b_followback'},
+  {t:(A?'1 · Tu suis ':'1 · '+u+' te suit')+(A?u:''), p:A?'Ouvre son '+lab+', abonne-toi, puis déclare-le ici.':'Il/elle doit te suivre en premier.', done:!!m.step1_a_followed_at, cur:m.status==='pending_a_follow'},
+  {t:A?'2 · '+u+' confirme ton follow':'2 · Tu confirmes le follow reçu', p:A?'Il/elle vérifie ses '+fol+'.':'Vérifie tes '+fol+' '+lab+' et confirme ici.', done:!!m.step2_b_confirmed_at, cur:m.status==='pending_b_confirm'},
+  {t:A?'3 · '+u+' te suit en retour':'3 · Tu suis '+u+' en retour', p:A?'Et le déclare de son côté.':'Ouvre son '+lab+', abonne-toi, déclare-le.', done:!!m.step3_b_followed_back_at, cur:m.status==='pending_b_followback'},
   {t:A?'4 · Tu confirmes le follow reçu':'4 · '+u+' confirme ton follow', p:'Dernière confirmation → match complété : +10 points chacun.', done:!!m.step4_a_confirmed_at, cur:m.status==='pending_a_confirm'}
  ];
  let cta='';
- const btnTik=`<a class="btn ghost" style="text-decoration:none" href="${tiktokUrl(otherUsername(m))}" target="_blank" rel="noopener">Ouvrir le TikTok de ${u} ↗</a>`;
+ const btnTik=`<a class="btn ghost" style="text-decoration:none" href="${pfUrl(pf,otherUsername(m))}" target="_blank" rel="noopener">Ouvrir le ${lab} de ${u} ↗</a>`;
  if(m.status==='pending_a_follow'&&A)        cta=btnTik+`<button class="btn mt8" onclick="stepDo('${m.id}','a_followed')">J'ai suivi ✔</button>`;
  else if(m.status==='pending_b_confirm'&&!A) cta=`<button class="btn" onclick="stepDo('${m.id}','b_confirm')">Follow reçu ✔</button><button class="btn ghost mt8" onclick="reportPb('${m.id}')">Je ne vois pas ce follow 🚩</button>`;
  else if(m.status==='pending_b_followback'&&!A) cta=btnTik+`<button class="btn mt8" onclick="stepDo('${m.id}','b_followed_back')">J'ai suivi en retour ✔</button>`;
@@ -423,7 +439,7 @@ function vProfile(){
    <div class="center mt16">
      <div class="avatar" style="width:84px;height:84px;font-size:32px;margin:0 auto">${initials(u.display_name)}</div>
      <h2 class="mt8">${esc(u.display_name)}</h2>
-     <p class="sub">@${esc(S.acct?.username||'')} <span style="color:var(--ok)">✔ vérifié</span> · ${esc(u.niche||'')}</p>
+     <p class="sub">${esc(pfLabel(S.acct?.platform))} · @${esc(S.acct?.username||'')} <span style="color:var(--ok)">✔ vérifié</span> · ${esc(u.niche||'')}</p>
    </div>
    ${gauge(u.trust_score)}
    <div class="center"><span class="pill ${lc}" style="font-size:14px">🛡 Niveau ${lv}</span></div>
@@ -443,9 +459,9 @@ function vSettings(){
  return `<div class="wrap">
    <button class="btn ghost small" onclick="go('profile')">← Profil</button>
    <h2 class="mt16">Réglages</h2>
-   <div class="card mt16"><b>Compte TikTok connecté</b>
+   <div class="card mt16"><b>Compte ${esc(pfLabel(S.acct?.platform))} connecté</b>
      <p class="sub mt8">@${esc(S.acct?.username||'')} · vérifié ✔</p>
-     <div class="field mt8"><label>Nombre d'abonnés (mets-le à jour de temps en temps)</label><input id="s-fol" type="number" min="0" value="${S.acct?.follower_count||0}"></div>
+     <div class="field mt8"><label>Nombre de ${pfFollow(S.acct?.platform)} (mets-le à jour de temps en temps)</label><input id="s-fol" type="number" min="0" value="${S.acct?.follower_count||0}"></div>
      <button class="btn small" onclick="saveFol()">Mettre à jour</button>
    </div>
    <div class="card mt16"><b>Compte</b>
@@ -465,10 +481,10 @@ async function saveFol(){
 /* ---------- admin ---------- */
 function vAdmin(){
  const pend=S.admin.pend.map(a=>`<div class="admin-item">
-   <div><b>@${esc(a.username)}</b> <span class="sub">(${esc(a.profiles?.display_name||'')})</span><br>
+   <div><b>${esc(pfLabel(a.platform))} · @${esc(a.username)}</b> <span class="sub">(${esc(a.profiles?.display_name||'')})</span><br>
    <span class="sub">code attendu en bio : <b>${esc(a.verification_code)}</b></span></div>
    <div class="spacer"></div>
-   <a class="btn ghost small" style="text-decoration:none" href="${tiktokUrl(a.username)}" target="_blank" rel="noopener">Bio ↗</a>
+   <a class="btn ghost small" style="text-decoration:none" href="${pfUrl(a.platform,a.username)}" target="_blank" rel="noopener">Bio ↗</a>
    <button class="btn small" onclick="adminVerif('${a.id}',true)">Valider ✔</button>
    <button class="btn ghost small" onclick="adminVerif('${a.id}',false)">Refuser</button>
  </div>`).join('')||'<p class="sub">Aucune vérification en attente 🎉</p>';
