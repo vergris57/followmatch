@@ -117,10 +117,11 @@ async function doSignup(){
  const email=$('a-email').value.trim(),pw=$('a-pw').value;
  if(!email||pw.length<8){toast('E-mail valide + mot de passe de 8 caractères minimum');return}
  const b=$('a-go');b.disabled=true;b.textContent='Création…';
- const{error}=await sb.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname}});
+ const{data,error}=await sb.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname}});
  b.disabled=false;b.textContent='Créer mon compte';
- if(error){err(error);return}
- toast('📬 Regarde ta boîte mail et clique le lien de confirmation, puis reviens te connecter.');
+ if(error){err(error.message&&error.message.toLowerCase().includes('already registered')?{message:'Un compte existe déjà avec cet e-mail — utilise l\'onglet « Se connecter ».'}:error);return}
+ if(data&&data.session){toast('✅ Compte créé — bienvenue sur FollowMatch !')}
+ else toast('📬 Regarde ta boîte mail et clique le lien de confirmation, puis reviens te connecter.');
 }
 async function doLogin(){
  const email=$('a-email').value.trim(),pw=$('a-pw').value;
