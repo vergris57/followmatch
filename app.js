@@ -1,6 +1,8 @@
 /* ============================================================
    FollowMatch — application réelle (frontend)
    Branchée sur Supabase (auth + base + fonctions serveur).
+   Modèle : ÉCHANGE CROISÉ — chacun choisit UN réseau-objectif ;
+   je suis l'autre sur SON objectif, il me suit sur le MIEN.
    ============================================================ */
 
 const NICHES=['Humour','Gaming','Beauté','Food','Sport','Musique','Mode','Tech','Business','Lifestyle','Art','Voyage'];
@@ -8,7 +10,7 @@ const CFG=window.FM_CONFIG||{};
 const CONFIGURED=CFG.SUPABASE_URL&&!CFG.SUPABASE_URL.startsWith('__');
 const sb=CONFIGURED?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY):null;
 
-const S={view:'landing',session:null,me:null,acct:null,ob:1,deck:[],matches:[],events:[],curMatch:null,likesLeft:20,admin:{pend:[],reps:[]}};
+const S={view:'landing',session:null,me:null,acct:null,accts:[],ob:1,deck:[],matches:[],events:[],curMatch:null,likesLeft:20,admin:{pend:[],reps:[]}};
 
 /* ---------- helpers ---------- */
 const $=id=>document.getElementById(id);
@@ -28,17 +30,32 @@ const PLATFORMS={
  x:        {label:'X',          url:u=>'https://x.com/'+enc(u),                follow:'abonnés'}
 };
 const PLATFORM_LIST=[['tiktok','TikTok'],['instagram','Instagram'],['snapchat','Snapchat'],['x','X']];
+const GOAL_BG='linear-gradient(135deg,#f59e0b,#ec4899)';
 function enc(u){return encodeURIComponent((u||'').replace(/^@/,''))}
 function pfUrl(pf,u){return (PLATFORMS[pf]||PLATFORMS.tiktok).url(u)}
 function pfLabel(pf){return (PLATFORMS[pf]||PLATFORMS.tiktok).label}
 function pfFollow(pf){return (PLATFORMS[pf]||PLATFORMS.tiktok).follow}
-function myAcct(){return S.acct}
-function otherOf(m){return m.user_a===S.me.id?m.b:m.a}
-function otherAcct(m){const sh=sharedAccounts(m);const o=otherOf(m);return sh[0]||(o.social_accounts||[]).find(x=>x.verification_status==='verified')||(o.social_accounts||[])[0]||{}}
-function otherUsername(m){return otherAcct(m).username||''}
-function otherPlatform(m){return otherAcct(m).platform||'tiktok'}
-function sharedBadges(m){return sharedAccounts(m).map(a=>`<span class="pill" style="background:var(--grad)">${esc(pfLabel(a.platform))}</span>`).join(' ')}
 function iAmA(m){return m.user_a===S.me.id}
+function otherOf(m){return m.user_a===S.me.id?m.b:m.a}
+function myVerifiedPlatforms(){return (S.accts||[]).filter(a=>a.verification_status==='verified').map(a=>a.platform)}
+function accOnNet(profileObj,net){const l=(profileObj&&profileObj.social_accounts)||[];return l.find(a=>a.platform===net&&a.verification_status==='verified')||l.find(a=>a.platform===net)||null}
+/* Infos d'un match dans le modèle croisé.
+   A suit B sur l'objectif de B (user_b_target) ; B suit A sur l'objectif de A (user_a_target). */
+function matchInfo(m){
+ const A=iAmA(m), other=otherOf(m);
+ const netA=m.user_a_target||(m.a&&m.a.target_platform), netB=m.user_b_target||(m.b&&m.b.target_platform);
+ const iFollowNet=A?netB:netA;            // réseau où JE suis l'autre = son objectif
+ const theyFollowMeNet=A?netA:netB;       // réseau où l'AUTRE me suit = mon objectif
+ const iFollowAcct=accOnNet(other,iFollowNet);
+ return {A,other,netA,netB,iFollowNet,theyFollowMeNet,iFollowAcct};
+}
+function exchBox(otherName,iFollowNet,myNet){
+ return `<div style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.35);border-radius:14px;padding:12px;margin-top:12px">
+   <div class="center sub" style="color:#c4b5fd;font-weight:700;margin-bottom:4px">L'échange</div>
+   <div style="font-size:13.5px;padding:3px 0">➡️ Tu suis <b>${esc(otherName)}</b> sur <b>${esc(pfLabel(iFollowNet))}</b></div>
+   <div style="font-size:13.5px;padding:3px 0">⬅️ <b>${esc(otherName)}</b> te suit sur <b>${esc(pfLabel(myNet))}</b></div>
+ </div>`;
+}
 
 /* ---------- routing ---------- */
 function go(v,arg){
@@ -74,9 +91,6 @@ async function loadMe(){
  S.acct=S.accts.find(a=>a.verification_status==='verified')||S.accts[0]||null;
  S.likesLeft=Math.max(0,20-(p.likes_reset_on===new Date().toISOString().slice(0,10)?p.daily_likes_used:0));
 }
-function myVerifiedPlatforms(){return (S.accts||[]).filter(a=>a.verification_status==='verified').map(a=>a.platform)}
-function acctsOf(profileObj){return (profileObj.social_accounts||[]).filter(a=>a.verification_status==='verified')}
-function sharedAccounts(m){const mine=myVerifiedPlatforms();return acctsOf(otherOf(m)).filter(a=>mine.includes(a.platform))}
 async function refreshDeck(){
  try{const{data,error}=await sb.rpc('fn_suggestions',{p_limit:15});if(error)throw error;
   S.deck=data||[];if(S.view==='swipe')$('screen').innerHTML=vSwipe();
@@ -84,9 +98,9 @@ async function refreshDeck(){
 }
 async function refreshMatches(){
  try{
-  const q='id,status,user_a,user_b,expires_at,created_at,completed_at,step1_a_followed_at,step2_b_confirmed_at,step3_b_followed_back_at,step4_a_confirmed_at,expired_fault,'
-   +'a:profiles!matches_user_a_fkey(id,display_name,trust_score,social_accounts(username,platform,verification_status)),'
-   +'b:profiles!matches_user_b_fkey(id,display_name,trust_score,social_accounts(username,platform,verification_status))';
+  const q='id,status,user_a,user_b,user_a_target,user_b_target,expires_at,created_at,completed_at,step1_a_followed_at,step2_b_confirmed_at,step3_b_followed_back_at,step4_a_confirmed_at,expired_fault,'
+   +'a:profiles!matches_user_a_fkey(id,display_name,trust_score,target_platform,social_accounts(username,platform,verification_status)),'
+   +'b:profiles!matches_user_b_fkey(id,display_name,trust_score,target_platform,social_accounts(username,platform,verification_status))';
   const{data,error}=await sb.from('matches').select(q).order('created_at',{ascending:false});if(error)throw error;
   S.matches=data||[];
  }catch(e){err(e)}
@@ -126,7 +140,7 @@ async function route(){
  if(!S.me.display_name){S.ob=1;go('onboarding');return}
  if(!S.accts||S.accts.length===0){S.ob=2;go('onboarding');return}
  if(myVerifiedPlatforms().length===0){go('waitverif');return}   // aucun réseau encore vérifié
- if(!S.me.niche){S.ob=3;go('onboarding');return}
+ if(!S.me.target_platform){S.ob=3;S._target=undefined;go('onboarding');return}   // pas encore d'objectif choisi
  await refreshMatches();
  go('swipe');
 }
@@ -147,7 +161,7 @@ async function doLogin(){
  b.disabled=false;b.textContent='Se connecter';
  if(error)err(error);
 }
-async function doLogout(){await sb.auth.signOut();S.me=null;S.acct=null;S.matches=[];go('landing')}
+async function doLogout(){await sb.auth.signOut();S.me=null;S.acct=null;S.accts=[];S.matches=[];go('landing')}
 async function doForgot(){
  const email=$('a-email').value.trim();
  if(!email){toast('Écris d\'abord ton e-mail dans le champ ci-dessus 🙂');return}
@@ -184,11 +198,11 @@ function vLanding(){
  const mode=S._authMode||'signup';
  return `${setup}<div class="hero">
    <div class="logo">FollowMatch</div>
-   <h1>Des followers réels,<br>en follow mutuel vérifié</h1>
+   <h1>Gagne des abonnés<br>là où tu en as besoin</h1>
    <p class="sub">Swipe. Match. Grandis.</p>
    <div class="steps3">
-     <div class="card"><div class="num">1</div><div><b>Swipe</b><p class="sub">Découvre des créateurs de ta niche, à ta taille.</p></div></div>
-     <div class="card"><div class="num">2</div><div><b>Match & follow mutuel</b><p class="sub">Vous vous suivez l'un l'autre, étape par étape, chacun confirme.</p></div></div>
+     <div class="card"><div class="num">1</div><div><b>Tes réseaux + ton objectif</b><p class="sub">Ajoute tes réseaux, puis choisis LE réseau où tu veux gagner des abonnés.</p></div></div>
+     <div class="card"><div class="num">2</div><div><b>Match & échange croisé</b><p class="sub">L'autre te suit sur TON réseau-objectif ; toi tu le suis sur le SIEN. Chacun grandit là où il veut.</p></div></div>
      <div class="card"><div class="num">3</div><div><b>Grandis</b><p class="sub">Les profils fiables gagnent un score de confiance et plus de visibilité.</p></div></div>
    </div>
    <div class="authbox card">
@@ -224,13 +238,20 @@ function vOnboarding(){
      </div>`;
    }).join('');
    return `<div class="wrap">${bar}
-   <h2>Tes réseaux 🆕</h2><p class="sub mb16">Coche <b>tous les réseaux que tu as déjà</b> et mets ton @ pour chacun. On te mettra en relation avec des créateurs qui ont <b>au moins un réseau en commun</b> avec toi — c'est là que vous pourrez vous suivre.</p>
+   <h2>Tes réseaux</h2><p class="sub mb16">Coche <b>tous les réseaux où tu es présent</b> et mets ton @ pour chacun. Ils te serviront à suivre tes partenaires — et l'un d'eux sera ton objectif à l'étape suivante.</p>
    ${rows}
    <button class="btn mt8" onclick="obCreateAccounts()">Générer mes codes de vérification</button></div>`;}
+ // étape 3 : objectif + niche + bio
+ if(S._target===undefined)S._target=S.me.target_platform||(myVerifiedPlatforms()[0]||null);
+ if(S._niche===undefined)S._niche=S.me.niche||null;
+ const goals=myVerifiedPlatforms();
  return `<div class="wrap">${bar}
-   <h2>Ta niche</h2><p class="sub mb16">On ne te proposera que des créateurs de ton univers.</p>
-   <div class="chips">${NICHES.map(n=>`<span class="chip ${S._niche===n?'on':''}" onclick="S._niche='${n}';go('onboarding')">${n}</span>`).join('')}</div>
-   <div class="field mt16"><label>Ta bio courte</label><input id="f-bio" maxlength="140" placeholder="Ce que tu crées, en une phrase"></div>
+   <h2>Ton objectif 🎯</h2><p class="sub mb16">Sur quel réseau veux-tu <b>gagner des abonnés</b> ? Un seul à la fois (modifiable plus tard). Les autres membres te suivront là.</p>
+   <div class="chips">${goals.map(k=>`<span class="chip ${S._target===k?'on':''}" style="${S._target===k?'background:'+GOAL_BG+';border-color:transparent':''}" onclick="S._target='${k}';go('onboarding')">🎯 ${pfLabel(k)}</span>`).join('')}</div>
+   <div class="field mt24"><label>Ta niche (info profil, facultatif)</label>
+     <div class="chips">${NICHES.map(n=>`<span class="chip ${S._niche===n?'on':''}" onclick="S._niche='${n}';go('onboarding')">${n}</span>`).join('')}</div>
+   </div>
+   <div class="field mt16"><label>Ta bio courte</label><input id="f-bio" maxlength="140" placeholder="Ce que tu crées, en une phrase" value="${esc(S.me.bio||'')}"></div>
    <button class="btn mt8" onclick="obFinish()">C'est parti 🚀</button></div>`;
 }
 async function obSaveName(){
@@ -250,11 +271,12 @@ async function obCreateAccounts(){
  S.accts=data;S.acct=data[0];go('waitverif');
 }
 async function obFinish(){
- if(!S._niche){toast('Choisis ta niche 🙂');return}
- const{error}=await sb.from('profiles').update({niche:S._niche,bio:$('f-bio').value}).eq('id',S.me.id);
+ if(!S._target){toast('Choisis ton réseau-objectif 🎯');return}
+ const{error:e1}=await sb.rpc('fn_set_target',{p_platform:S._target});if(e1){err(e1);return}
+ const{error}=await sb.from('profiles').update({niche:S._niche||null,bio:$('f-bio').value}).eq('id',S.me.id);
  if(error){err(error);return}
- S.me.niche=S._niche;S.me.bio=$('f-bio').value;
- toast('Profil créé — bienvenue sur FollowMatch 🎉');
+ S.me.target_platform=S._target;S.me.niche=S._niche||null;S.me.bio=$('f-bio').value;
+ toast('Profil créé — objectif : '+pfLabel(S._target)+' 🎉');
  await refreshMatches();go('swipe');
 }
 function vWait(){
@@ -268,7 +290,7 @@ function vWait(){
  const anyVerified=myVerifiedPlatforms().length>0;
  return `<div class="wrap">
    <div class="center"><div class="big">🕐</div><h2 class="mt8">Vérifie tes réseaux</h2>
-   <p class="sub mt8">On vérifie que chaque compte t'appartient — sous 24h, souvent bien plus vite. Tu pourras commencer dès qu'<b>au moins un</b> réseau est vérifié.</p></div>
+   <p class="sub mt8">On vérifie que chaque compte t'appartient — sous 24h, souvent bien plus vite. Tu pourras choisir ton objectif dès qu'<b>au moins un</b> réseau est vérifié.</p></div>
    ${cards}
    <button class="btn mt16" onclick="checkVerif()">J'ai placé les codes / Actualiser</button>
    ${anyVerified?`<button class="btn ghost mt8" onclick="route()">Continuer (${myVerifiedPlatforms().length} réseau(x) vérifié(s))</button>`:''}
@@ -284,32 +306,29 @@ async function checkVerif(){
 
 /* ---------- swipe ---------- */
 function vSwipe(){
- const d=S.deck;
+ const d=S.deck;const myT=S.me.target_platform;
  const admin=S.me?.is_admin?`<button class="btn ghost small" onclick="go('admin')">🛠 Admin</button>`:'';
- const cards=d.length===0?`<div class="card center" style="padding:48px 20px"><div class="big">🌙</div><h2 class="mt8">Plus de profils pour l'instant</h2><p class="sub mt8">Reviens un peu plus tard — de nouveaux créateurs arrivent en continu.</p></div>`
+ const cards=d.length===0?`<div class="card center" style="padding:48px 20px"><div class="big">🌙</div><h2 class="mt8">Plus de profils pour l'instant</h2><p class="sub mt8">Reviens un peu plus tard — de nouveaux créateurs présents sur <b>${esc(pfLabel(myT))}</b> arrivent en continu.</p></div>`
   :d.slice(0,3).map((p,i)=>{
-   const accs=p.accounts||[]; const shared=p.shared||[];
-   const sharedAccs=accs.filter(a=>shared.includes(a.platform));
-   const name=(accs[0]&&accs[0].username)?('@'+accs[0].username):p.display_name;
-   const sharedPills=sharedAccs.map(a=>`<span class="pill" style="background:var(--grad)">${esc(pfLabel(a.platform))}</span>`).join(' ');
-   const links=sharedAccs.map(a=>`<a class="sub" style="text-decoration:none" href="${pfUrl(a.platform,a.username)}" target="_blank" rel="noopener">${esc(pfLabel(a.platform))} : @${esc(a.username)} ↗</a>`).join('<br>');
+   const goal=p.target_platform;
    return `
    <div class="pcard ${i===1?'back1':i===2?'back2':''}" id="card-${p.user_id}" style="z-index:${9-i}">
-     <div class="center"><div class="avatar" style="width:110px;height:110px;font-size:40px">${initials(p.display_name)}</div>
+     <div class="center"><div class="avatar" style="width:92px;height:92px;font-size:34px">${initials(p.display_name)}</div>
        <h2>${esc(p.display_name)}</h2>
-       <p class="sub" style="margin-top:2px">En commun : ${sharedPills||'—'}</p>
+       <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(goal))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
-         <span class="pill" style="background:var(--panel2)">${esc(p.niche||'—')}</span>
+         <span class="pill" style="background:var(--panel2)">${esc(p.niche||'Créateur')}</span>
+         ${lvBadge(p.trust_score)}
        </div>
-       <div class="mt8">${lvBadge(p.trust_score)}</div>
-       <p class="sub mt16">${esc(p.bio)}</p>
+       <p class="sub mt8">${esc(p.bio)}</p>
      </div>
+     ${exchBox(p.display_name,goal,myT)}
      <div class="spacer"></div>
-     <div class="center" style="font-size:13px;line-height:1.7">${links}</div>
+     <a class="sub center mt8" style="text-decoration:none;display:block" href="${pfUrl(goal,p.target_username)}" target="_blank" rel="noopener">Voir son ${esc(pfLabel(goal))} : @${esc(p.target_username||'')} ↗</a>
    </div>`;
    }).reverse().join('');
  return `<div class="wrap">
-   <div class="row"><span class="logo">FollowMatch</span><div class="spacer"></div>${admin}<span class="pill" style="background:var(--panel2)">🎯 ${esc(S.me?.niche||'')}</span></div>
+   <div class="row"><span class="logo">FollowMatch</span><div class="spacer"></div>${admin}<span class="pill" style="background:${GOAL_BG}">🎯 Objectif : ${esc(pfLabel(myT))}</span></div>
    <div class="deck">${cards}</div>
    ${d.length?`<div class="actions">
      <button class="act" onclick="swipe(false)">✖️</button>
@@ -335,12 +354,13 @@ async function swipe(like){
  }catch(e){if(el)el.classList.remove('fly-r','fly-l');err(e)}
 }
 function showMatchModal(p,matchId){
+ const myT=S.me.target_platform;
  const box=document.createElement('div');box.id='modal';
  box.innerHTML=`<div class="box">
    <div class="big">🎉</div><h2>C'est un match !</h2>
    <div class="duo"><div class="avatar">${initials(S.me.display_name)}</div><div class="avatar">${initials(p.display_name)}</div></div>
-   <p class="sub">${esc(p.display_name)} veut aussi te suivre.<br>Réseaux en commun : <b>${(p.shared||[]).map(pfLabel).join(', ')||'—'}</b>.<br>Le tunnel de validation démarre — vous avez 48h par étape.</p>
-   <button class="btn mt16" onclick="closeModal();go('detail','${matchId}')">Voir le match</button>
+   ${exchBox(p.display_name,p.target_platform,myT)}
+   <button class="btn mt16" onclick="closeModal();go('detail','${matchId}')">Commencer l'échange</button>
    <button class="btn ghost mt8" onclick="closeModal()">Continuer à swiper</button>
  </div>`;
  document.body.appendChild(box);
@@ -350,17 +370,16 @@ function closeModal(){const m=$('modal');if(m)m.remove()}
 
 /* ---------- matchs ---------- */
 function stLabel(m){
- const u='@'+esc(otherUsername(m));
- const mine=needsMe(m);
+ const o=otherOf(m),mi=matchInfo(m),mine=needsMe(m),u=esc(o.display_name);
  switch(m.status){
-  case 'pending_a_follow':   return mine?['action','À toi de jouer : suis '+u]:['wait','En attente : '+u+' doit te suivre'];
-  case 'pending_b_confirm':  return mine?['action','À toi : confirme le follow reçu de '+u]:['wait','En attente : '+u+' confirme ton follow'];
-  case 'pending_b_followback':return mine?['action','À toi : suis '+u+' en retour']:['wait','En attente : '+u+' te suit en retour'];
-  case 'pending_a_confirm':  return mine?['action','À toi : confirme le follow reçu de '+u]:['wait','En attente : '+u+' confirme ton follow'];
-  case 'completed':          return ['done','Complété ✅ · +10 points chacun'];
-  case 'expired':            return ['exp','Expiré ⌛'+(m.expired_fault===S.me.id?' · tu n\'as pas agi à temps (−10)':' · '+u+' n\'a pas agi à temps')];
-  case 'reported':           return ['exp','Signalé 🚩 · en cours de vérification'];
-  default:                   return ['wait',m.status];
+  case 'pending_a_follow':    return mine?['action','À toi : suis '+u+' sur '+pfLabel(mi.iFollowNet)]:['wait','En attente : '+u+' doit te suivre'];
+  case 'pending_b_confirm':   return mine?['action','À toi : confirme le follow de '+u]:['wait','En attente : '+u+' confirme ton follow'];
+  case 'pending_b_followback':return mine?['action','À toi : suis '+u+' sur '+pfLabel(mi.iFollowNet)]:['wait','En attente : '+u+' te suit en retour'];
+  case 'pending_a_confirm':   return mine?['action','À toi : confirme le follow de '+u]:['wait','En attente : '+u+' confirme ton follow'];
+  case 'completed':           return ['done','Complété ✅ · +10 points chacun'];
+  case 'expired':             return ['exp','Expiré ⌛'+(m.expired_fault===S.me.id?' · tu n\'as pas agi à temps (−10)':' · '+u+' n\'a pas agi à temps')];
+  case 'reported':            return ['exp','Signalé 🚩 · en cours de vérification'];
+  default:                    return ['wait',m.status];
  }
 }
 function retentionDue(){
@@ -370,24 +389,24 @@ function retentionDue(){
   const days=(Date.now()-new Date(m.completed_at))/864e5;
   if(days>=7)out.push({m,day:days>=30?30:7});
  }
- return out.slice(0,1); // une question à la fois
+ return out.slice(0,1);
 }
 function vMatches(){
- const item=m=>{const[c,l]=stLabel(m);const o=otherOf(m);return `<div class="mitem" onclick="go('detail','${m.id}')">
+ const item=m=>{const[c,l]=stLabel(m);const o=otherOf(m);const mi=matchInfo(m);return `<div class="mitem" onclick="go('detail','${m.id}')">
    <div class="avatar">${initials(o.display_name)}</div>
-   <div><b>${esc(o.display_name)}</b> ${sharedBadges(m)}<div class="st ${c}">${l}</div></div>
+   <div><b>${esc(o.display_name)}</b> <span class="pill" style="background:${GOAL_BG};font-size:10px;padding:2px 8px">🎯 ${esc(pfLabel(mi.iFollowNet))}</span><div class="st ${c}">${l}</div></div>
    <div class="spacer"></div>${m.expires_at&&!['completed','expired','reported'].includes(m.status)?`<span class="timer">⏳ ${left(m.expires_at)}</span>`:''}
  </div>`};
  const act=S.matches.filter(needsMe);
  const wait=S.matches.filter(m=>!needsMe(m)&&!['completed','expired','reported'].includes(m.status));
  const hist=S.matches.filter(m=>['completed','expired','reported'].includes(m.status));
  const sec=(t,arr)=>arr.length?`<h2 class="mt24" style="font-size:15px;color:var(--muted)">${t}</h2><div class="mt8">${arr.map(item).join('')}</div>`:'';
- const ret=retentionDue().map(({m,day})=>`<div class="card mt16" style="border-color:var(--warn)">
+ const ret=retentionDue().map(({m,day})=>{const mi=matchInfo(m);return `<div class="card mt16" style="border-color:var(--warn)">
    <b>Contrôle fidélité (J${day})</b>
-   <p class="sub mt8">Est-ce que <b>@${esc(otherUsername(m))}</b> te suit toujours sur ${esc(pfLabel(otherPlatform(m)))} ?</p>
+   <p class="sub mt8">Est-ce que <b>${esc(mi.other.display_name)}</b> te suit toujours sur ${esc(pfLabel(mi.theyFollowMeNet))} ?</p>
    <div class="row mt8"><button class="btn small" onclick="retAnswer('${m.id}',${day},true)">Oui ✔</button>
    <button class="btn ghost small" onclick="retAnswer('${m.id}',${day},false)">Non 🚩</button></div>
- </div>`).join('');
+ </div>`}).join('');
  return `<div class="wrap"><h1 style="font-size:22px">Tes matchs</h1>${ret}
    ${S.matches.length===0?'<div class="card center mt16" style="padding:40px 20px"><div class="big">🤝</div><p class="sub mt8">Pas encore de match — va swiper !</p></div>':''}
    ${sec('🔥 Action requise',act)}${sec('⏳ En attente de l\'autre',wait)}${sec('📁 Historique',hist)}
@@ -402,31 +421,38 @@ async function retAnswer(mid,day,still){
 }
 function vDetail(){
  const m=S.matches.find(x=>x.id===S.curMatch);if(!m)return vMatches();
- const o=otherOf(m);const A=iAmA(m);
- const sh=sharedAccounts(m); const u=o.display_name;
- const netNames=sh.map(a=>pfLabel(a.platform)).join(', ')||'vos réseaux communs';
+ const mi=matchInfo(m);const A=mi.A;const o=mi.other;const u=esc(o.display_name);
+ const netA=mi.netA,netB=mi.netB;                       // A suit B sur netB ; B suit A sur netA
  const steps=[
-  {t:(A?'1 · Tu suis ':'1 · '+esc(u)+' te suit')+(A?' '+esc(u):''), p:A?'Ouvre ses comptes ('+netNames+'), abonne-toi, puis déclare-le ici.':'Il/elle doit te suivre en premier.', done:!!m.step1_a_followed_at, cur:m.status==='pending_a_follow'},
-  {t:A?'2 · '+esc(u)+' confirme ton follow':'2 · Tu confirmes le follow reçu', p:A?'Il/elle vérifie ses abonnés.':'Vérifie sur '+netNames+' et confirme ici.', done:!!m.step2_b_confirmed_at, cur:m.status==='pending_b_confirm'},
-  {t:A?'3 · '+esc(u)+' te suit en retour':'3 · Tu suis '+esc(u)+' en retour', p:A?'Et le déclare de son côté.':'Ouvre ses comptes ('+netNames+'), abonne-toi, déclare-le.', done:!!m.step3_b_followed_back_at, cur:m.status==='pending_b_followback'},
-  {t:A?'4 · Tu confirmes le follow reçu':'4 · '+esc(u)+' confirme ton follow', p:'Dernière confirmation → match complété : +10 points chacun.', done:!!m.step4_a_confirmed_at, cur:m.status==='pending_a_confirm'}
+  {t:A?('1 · Tu suis '+u+' sur '+pfLabel(netB)):('1 · '+u+' te suit sur '+pfLabel(netB)),
+   p:A?('Ouvre son '+pfLabel(netB)+', abonne-toi, puis déclare-le ici.'):('Il/elle te suit en premier, sur ton '+pfLabel(netB)+'.'),
+   done:!!m.step1_a_followed_at,cur:m.status==='pending_a_follow'},
+  {t:A?('2 · '+u+' confirme ton follow'):('2 · Tu confirmes le follow reçu'),
+   p:A?'Il/elle vérifie ses abonnés.':('Vérifie tes '+pfFollow(netB)+' '+pfLabel(netB)+' et confirme.'),
+   done:!!m.step2_b_confirmed_at,cur:m.status==='pending_b_confirm'},
+  {t:A?('3 · '+u+' te suit sur '+pfLabel(netA)):('3 · Tu suis '+u+' sur '+pfLabel(netA)),
+   p:A?('Sur ton '+pfLabel(netA)+', il/elle te suit en retour et le déclare.'):('Ouvre son '+pfLabel(netA)+', abonne-toi, puis déclare-le.'),
+   done:!!m.step3_b_followed_back_at,cur:m.status==='pending_b_followback'},
+  {t:A?('4 · Tu confirmes le follow reçu'):('4 · '+u+' confirme ton follow'),
+   p:'Dernière confirmation → match complété : +10 points chacun.',done:!!m.step4_a_confirmed_at,cur:m.status==='pending_a_confirm'}
  ];
+ const followLink=mi.iFollowAcct?`<a class="btn ghost" style="text-decoration:none" href="${pfUrl(mi.iFollowNet,mi.iFollowAcct.username)}" target="_blank" rel="noopener">Ouvrir le ${pfLabel(mi.iFollowNet)} de ${u} : @${esc(mi.iFollowAcct.username)} ↗</a>`:'';
  let cta='';
- const btnTik=sh.map(a=>`<a class="btn ghost ${sh.length>1?'small':''}" style="text-decoration:none;${sh.length>1?'display:inline-block;margin:2px':''}" href="${pfUrl(a.platform,a.username)}" target="_blank" rel="noopener">Ouvrir ${pfLabel(a.platform)} : @${esc(a.username)} ↗</a>`).join('');
- if(m.status==='pending_a_follow'&&A)        cta=btnTik+`<button class="btn mt8" onclick="stepDo('${m.id}','a_followed')">J'ai suivi ✔</button>`;
- else if(m.status==='pending_b_confirm'&&!A) cta=`<button class="btn" onclick="stepDo('${m.id}','b_confirm')">Follow reçu ✔</button><button class="btn ghost mt8" onclick="reportPb('${m.id}')">Je ne vois pas ce follow 🚩</button>`;
- else if(m.status==='pending_b_followback'&&!A) cta=btnTik+`<button class="btn mt8" onclick="stepDo('${m.id}','b_followed_back')">J'ai suivi en retour ✔</button>`;
- else if(m.status==='pending_a_confirm'&&A)  cta=`<button class="btn" onclick="stepDo('${m.id}','a_confirm')">Follow reçu ✔ — compléter le match</button><button class="btn ghost mt8" onclick="reportPb('${m.id}')">Je ne vois pas ce follow 🚩</button>`;
- else if(m.status==='completed') cta=`<div class="card center" style="border-color:var(--ok)"><b style="color:var(--ok)">Match complété ✅</b><p class="sub mt8">Vous vous suivez mutuellement. Contrôles fidélité à J7 et J30.</p></div>`;
- else if(m.status==='expired')  cta=`<div class="card center" style="border-color:var(--bad)"><b style="color:var(--bad)">Match expiré ⌛</b><p class="sub mt8">${m.expired_fault===S.me.id?'Tu n\'as pas agi dans les 48h : −10 points. Le prochain ira mieux 💪':esc(u)+' n\'a pas agi à temps. Son score a baissé — le tien est intact.'}</p></div>`;
+ if(m.status==='pending_a_follow'&&A)            cta=followLink+`<button class="btn mt8" onclick="stepDo('${m.id}','a_followed')">J'ai suivi ✔</button>`;
+ else if(m.status==='pending_b_confirm'&&!A)     cta=`<button class="btn" onclick="stepDo('${m.id}','b_confirm')">Follow reçu ✔</button><button class="btn ghost mt8" onclick="reportPb('${m.id}')">Je ne vois pas ce follow 🚩</button>`;
+ else if(m.status==='pending_b_followback'&&!A)  cta=followLink+`<button class="btn mt8" onclick="stepDo('${m.id}','b_followed_back')">J'ai suivi en retour ✔</button>`;
+ else if(m.status==='pending_a_confirm'&&A)      cta=`<button class="btn" onclick="stepDo('${m.id}','a_confirm')">Follow reçu ✔ — compléter le match</button><button class="btn ghost mt8" onclick="reportPb('${m.id}')">Je ne vois pas ce follow 🚩</button>`;
+ else if(m.status==='completed') cta=`<div class="card center" style="border-color:var(--ok)"><b style="color:var(--ok)">Match complété ✅</b><p class="sub mt8">Toi +1 sur ${pfLabel(mi.theyFollowMeNet)}, ${u} +1 sur ${pfLabel(mi.iFollowNet)}. Contrôles fidélité à J7 et J30.</p></div>`;
+ else if(m.status==='expired')  cta=`<div class="card center" style="border-color:var(--bad)"><b style="color:var(--bad)">Match expiré ⌛</b><p class="sub mt8">${m.expired_fault===S.me.id?'Tu n\'as pas agi dans les 48h : −10 points. Le prochain ira mieux 💪':u+' n\'a pas agi à temps. Son score a baissé — le tien est intact.'}</p></div>`;
  else if(m.status==='reported') cta=`<div class="card center"><p class="sub">🚩 Signalement en cours de vérification par l'équipe.</p></div>`;
- else cta=`<div class="card center"><p class="sub">⏳ Au tour de ${esc(u)} — reviens un peu plus tard.${m.expires_at?' <br><span class="timer">'+left(m.expires_at)+'</span>':''}</p></div>`;
+ else cta=`<div class="card center"><p class="sub">⏳ Au tour de ${u} — reviens un peu plus tard.${m.expires_at?' <br><span class="timer">'+left(m.expires_at)+'</span>':''}</p></div>`;
  return `<div class="wrap">
    <button class="btn ghost small" onclick="go('matches')">← Matchs</button>
    <div class="center mt16"><div class="avatar" style="width:80px;height:80px;font-size:30px;margin:0 auto">${initials(o.display_name)}</div>
-     <h2 class="mt8">${esc(u)}</h2><div class="mt8">${sharedBadges(m)}</div><div class="mt8">${lvBadge(o.trust_score)}</div>
-     <p class="sub mt8">Vos réseaux communs — c'est là que vous vous suivez :</p>
-     <div style="font-size:13.5px;line-height:1.8">${sh.map(a=>`<a class="sub" style="text-decoration:none" href="${pfUrl(a.platform,a.username)}" target="_blank" rel="noopener">${esc(pfLabel(a.platform))} : @${esc(a.username)} ↗</a>`).join('<br>')}</div></div>
+     <h2 class="mt8">${u}</h2>
+     <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(mi.iFollowNet))}</span></div>
+     <div class="mt8">${lvBadge(o.trust_score)}</div></div>
+   ${exchBox(o.display_name,mi.iFollowNet,mi.theyFollowMeNet)}
    <div class="card mt16">${steps.map(s=>`<div class="step ${s.done?'done':''} ${s.cur?'cur':''}"><div class="dot">${s.done?'✓':'●'}</div><div><h4>${s.t}</h4><p>${s.p}</p></div></div>`).join('')}</div>
    <div class="mt16">${cta}</div>
    ${['completed','expired','reported'].includes(m.status)?'':`<button class="btn ghost mt8" onclick="reportPb('${m.id}')">Signaler un problème</button>`}
@@ -472,29 +498,35 @@ function vProfile(){
    <div class="center mt16">
      <div class="avatar" style="width:84px;height:84px;font-size:32px;margin:0 auto">${initials(u.display_name)}</div>
      <h2 class="mt8">${esc(u.display_name)}</h2>
-     <p class="sub">${esc(u.niche||'')}</p>
-     <div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px">${(S.accts||[]).map(a=>`<span class="pill" style="background:${a.verification_status==='verified'?'var(--grad)':'var(--panel2)'}">${esc(pfLabel(a.platform))}${a.verification_status==='verified'?'':' ⏳'}</span>`).join('')}</div>
+     <p class="sub">${esc(u.niche||'Créateur')}</p>
+     <div class="mt8"><span class="pill" style="background:${GOAL_BG};font-size:13px">🎯 Objectif : ${esc(pfLabel(u.target_platform))}</span></div>
+     <div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap;margin-top:8px"><span class="sub">Présent sur :</span>${(S.accts||[]).map(a=>`<span class="pill" style="background:${a.verification_status==='verified'?'var(--panel2)':'var(--panel2)'};${a.platform===u.target_platform?'border:1px solid var(--violet)':''}">${esc(pfLabel(a.platform))}${a.verification_status==='verified'?'':' ⏳'}</span>`).join('')}</div>
    </div>
    ${gauge(u.trust_score)}
    <div class="center"><span class="pill ${lc}" style="font-size:14px">🛡 Niveau ${lv}</span></div>
    <div class="stats mt24">
      <div class="stat"><b>${done}</b><span>matchs complétés</span></div>
-     <div class="stat"><b>+${done}</b><span>followers gagnés via l'app</span></div>
+     <div class="stat"><b>+${done}</b><span>abonnés gagnés via l'app</span></div>
      <div class="stat"><b>${rate}%</b><span>taux de complétion</span></div>
      <div class="stat"><b>${S.likesLeft}</b><span>likes restants aujourd'hui</span></div>
    </div>
    <div class="card mt16"><b>Historique du score</b><div class="mt8">
      ${S.events.length?S.events.map(e=>`<div class="ev"><span>${esc(evLabel(e.event_type))}</span><span class="${e.points_delta>=0?'delta-p':'delta-n'}">${e.points_delta>=0?'+':''}${e.points_delta}</span></div>`).join(''):'<p class="sub">Ton premier match complété apparaîtra ici (+10).</p>'}
    </div></div>
-   <p class="sub mt16" style="font-size:12.5px">💡 Plus ton score est haut, plus tu apparais tôt dans les piles des autres. La visibilité se gagne par la fiabilité — jamais par la triche.</p>
+   <p class="sub mt16" style="font-size:12.5px">💡 Tu grandis sur ton objectif ; en échange tu suis tes partenaires sur le leur. Plus ton score est haut, plus tu apparais tôt dans les piles.</p>
  </div>`;
 }
 function vSettings(){
+ const goals=myVerifiedPlatforms();
  return `<div class="wrap">
    <button class="btn ghost small" onclick="go('profile')">← Profil</button>
    <h2 class="mt16">Réglages</h2>
+   <div class="card mt16"><b>🎯 Mon objectif</b>
+     <p class="sub mt8">Le réseau où tu veux gagner des abonnés en ce moment (un seul à la fois). Change quand tu veux.</p>
+     <div class="chips mt8">${goals.map(k=>`<span class="chip ${S.me.target_platform===k?'on':''}" style="${S.me.target_platform===k?'background:'+GOAL_BG+';border-color:transparent':''}" onclick="changeTarget('${k}')">${pfLabel(k)}</span>`).join('')||'<span class="sub">Vérifie un réseau pour choisir ton objectif.</span>'}</div>
+   </div>
    <div class="card mt16"><b>Tes réseaux connectés</b>
-     ${(S.accts||[]).map(a=>`<div class="row mt8" style="gap:8px"><span class="pill" style="background:${a.verification_status==='verified'?'var(--grad)':'var(--panel2)'}">${esc(pfLabel(a.platform))}</span><span class="sub">@${esc(a.username)} · ${a.verification_status==='verified'?'vérifié ✔':'en attente ⏳'}</span></div>`).join('')}
+     ${(S.accts||[]).map(a=>`<div class="row mt8" style="gap:8px"><span class="pill" style="background:${a.verification_status==='verified'?'var(--grad)':'var(--panel2)'}">${esc(pfLabel(a.platform))}</span><span class="sub">@${esc(a.username)} · ${a.verification_status==='verified'?'vérifié ✔':'en attente ⏳'}${a.platform===S.me.target_platform?' · 🎯 objectif':''}</span></div>`).join('')}
      <p class="sub mt8" style="font-size:12px">Pour ajouter un réseau supplémentaire, écris-nous — bientôt directement ici.</p>
    </div>
    <div class="card mt16"><b>Compte</b>
@@ -504,11 +536,11 @@ function vSettings(){
    <p class="sub mt16" style="font-size:12px">Suppression du compte & données (RGPD) : écris à support@followmatch.app — traitée sous 72h.</p>
  </div>`;
 }
-async function saveFol(){
- const f=+($('s-fol').value||0);
- const{error}=await sb.from('social_accounts').update({follower_count:f}).eq('id',S.acct.id);
- if(error){err(error);return}
- S.acct.follower_count=f;toast('✔ Mis à jour');
+async function changeTarget(k){
+ if(S.me.target_platform===k)return;
+ try{const{error}=await sb.rpc('fn_set_target',{p_platform:k});if(error)throw error;
+  S.me.target_platform=k;toast('🎯 Nouvel objectif : '+pfLabel(k)+' — ta pile de swipe est mise à jour.');go('settings');refreshDeck();
+ }catch(e){err(e)}
 }
 
 /* ---------- admin ---------- */
