@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FollowMatch — Des followers réels, en follow mutuel vérifié</title>
 <meta name="description" content="Swipe. Match. Grandis. FollowMatch met en relation des créateurs qui se suivent mutuellement, avec validation en 4 étapes et score de confiance.">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0c0c14">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FollowMatch">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root{
     --bg:#0c0c14; --panel:#15151f; --panel2:#1c1c2a; --line:#262637;
@@ -159,5 +167,6 @@
 <script src="./supabase.js"></script>
 <script src="./config.js"></script>
 <script src="./app.js?v=6"></script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}</script>
 </body>
 </html>
