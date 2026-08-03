@@ -34,9 +34,10 @@ function pfLabel(pf){return (PLATFORMS[pf]||PLATFORMS.tiktok).label}
 function pfFollow(pf){return (PLATFORMS[pf]||PLATFORMS.tiktok).follow}
 function myAcct(){return S.acct}
 function otherOf(m){return m.user_a===S.me.id?m.b:m.a}
-function otherAcct(m){const o=otherOf(m);return (o.social_accounts||[]).find(x=>x.verification_status==='verified')||(o.social_accounts||[])[0]||{}}
+function otherAcct(m){const sh=sharedAccounts(m);const o=otherOf(m);return sh[0]||(o.social_accounts||[]).find(x=>x.verification_status==='verified')||(o.social_accounts||[])[0]||{}}
 function otherUsername(m){return otherAcct(m).username||''}
 function otherPlatform(m){return otherAcct(m).platform||'tiktok'}
+function sharedBadges(m){return sharedAccounts(m).map(a=>`<span class="pill" style="background:var(--grad)">${esc(pfLabel(a.platform))}</span>`).join(' ')}
 function iAmA(m){return m.user_a===S.me.id}
 
 /* ---------- routing ---------- */
@@ -69,9 +70,13 @@ async function loadMe(){
  const{data:p,error:e1}=await sb.from('profiles').select('*').eq('id',uid).single();if(e1)throw e1;
  S.me=p;
  const{data:accts}=await sb.from('social_accounts').select('*').eq('user_id',uid).order('created_at');
- S.acct=(accts||[])[0]||null;
+ S.accts=accts||[];
+ S.acct=S.accts.find(a=>a.verification_status==='verified')||S.accts[0]||null;
  S.likesLeft=Math.max(0,20-(p.likes_reset_on===new Date().toISOString().slice(0,10)?p.daily_likes_used:0));
 }
+function myVerifiedPlatforms(){return (S.accts||[]).filter(a=>a.verification_status==='verified').map(a=>a.platform)}
+function acctsOf(profileObj){return (profileObj.social_accounts||[]).filter(a=>a.verification_status==='verified')}
+function sharedAccounts(m){const mine=myVerifiedPlatforms();return acctsOf(otherOf(m)).filter(a=>mine.includes(a.platform))}
 async function refreshDeck(){
  try{const{data,error}=await sb.rpc('fn_suggestions',{p_limit:15});if(error)throw error;
   S.deck=data||[];if(S.view==='swipe')$('screen').innerHTML=vSwipe();
@@ -119,8 +124,8 @@ async function route(){
  if(!S.session){go('landing');return}
  try{await loadMe()}catch(e){err(e);go('landing');return}
  if(!S.me.display_name){S.ob=1;go('onboarding');return}
- if(!S.acct){S.ob=2;go('onboarding');return}
- if(S.acct.verification_status!=='verified'){go('waitverif');return}
+ if(!S.accts||S.accts.length===0){S.ob=2;go('onboarding');return}
+ if(myVerifiedPlatforms().length===0){go('waitverif');return}   // aucun réseau encore vérifié
  if(!S.me.niche){S.ob=3;go('onboarding');return}
  await refreshMatches();
  go('swipe');
@@ -207,12 +212,21 @@ function vOnboarding(){
    <h2>Bienvenue 👋</h2><p class="sub mb16">Comment veux-tu apparaître ?</p>
    <div class="field"><label>Ton pseudo</label><input id="f-pseudo" maxlength="30" placeholder="ex. Jalal"></div>
    <button class="btn mt8" onclick="obSaveName()">Continuer</button></div>`;
- if(S.ob===2){const pf=S._platform||'tiktok';return `<div class="wrap">${bar}
-   <h2>Connecte ton compte</h2><p class="sub mb16">Choisis ton réseau — tu seras mis en relation avec des créateurs du <b>même réseau</b> (le follow mutuel se fait là où vous êtes tous les deux).</p>
-   <div class="field"><label>Ton réseau</label><div class="chips">${PLATFORM_LIST.map(([k,l])=>`<span class="chip ${pf===k?'on':''}" onclick="S._platform='${k}';go('onboarding')">${l}</span>`).join('')}</div></div>
-   <div class="field"><label>Ton @username ${pfLabel(pf)}</label><input id="f-tt" placeholder="@toncompte"></div>
-   <div class="field"><label>Tes ${pfFollow(pf)} (environ)</label><input id="f-fol" type="number" min="0" value="500"></div>
-   <button class="btn" onclick="obCreateAccount()">Générer mon code de vérification</button></div>`;}
+ if(S.ob===2){
+   S._nets=S._nets||{};
+   const rows=PLATFORM_LIST.map(([k,l])=>{
+     const on=!!(S._nets[k]&&S._nets[k].on);
+     return `<div class="card" style="padding:12px;margin-bottom:10px">
+       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600">
+         <input type="checkbox" ${on?'checked':''} onchange="toggleNet('${k}')" style="width:18px;height:18px"> ${l}</label>
+       ${on?`<div class="field mt8" style="margin-bottom:8px"><input id="net-${k}-u" placeholder="@ton_username_${k}" value="${esc(S._nets[k].user||'')}" oninput="S._nets['${k}'].user=this.value"></div>
+             <div class="field" style="margin-bottom:0"><input id="net-${k}-f" type="number" min="0" placeholder="Tes ${pfFollow(k)} (environ)" value="${S._nets[k].fol||''}" oninput="S._nets['${k}'].fol=this.value"></div>`:''}
+     </div>`;
+   }).join('');
+   return `<div class="wrap">${bar}
+   <h2>Tes réseaux 🆕</h2><p class="sub mb16">Coche <b>tous les réseaux que tu as déjà</b> et mets ton @ pour chacun. On te mettra en relation avec des créateurs qui ont <b>au moins un réseau en commun</b> avec toi — c'est là que vous pourrez vous suivre.</p>
+   ${rows}
+   <button class="btn mt8" onclick="obCreateAccounts()">Générer mes codes de vérification</button></div>`;}
  return `<div class="wrap">${bar}
    <h2>Ta niche</h2><p class="sub mb16">On ne te proposera que des créateurs de ton univers.</p>
    <div class="chips">${NICHES.map(n=>`<span class="chip ${S._niche===n?'on':''}" onclick="S._niche='${n}';go('onboarding')">${n}</span>`).join('')}</div>
@@ -225,13 +239,15 @@ async function obSaveName(){
  if(error){err(error);return}
  S.me.display_name=n;S.ob=2;go('onboarding');
 }
-async function obCreateAccount(){
- const pf=S._platform||'tiktok';
- const u=$('f-tt').value.trim().replace(/^@/,'');const f=+($('f-fol').value||0);
- if(!u){toast('Renseigne ton @username '+pfLabel(pf));return}
- const{data,error}=await sb.from('social_accounts').insert({user_id:S.me.id,platform:pf,username:u,follower_count:f}).select().single();
- if(error){err(error.code==='23505'?{message:'Ce compte '+pfLabel(pf)+' est déjà utilisé sur FollowMatch'}:error);return}
- S.acct=data;go('waitverif');
+function toggleNet(k){S._nets=S._nets||{};S._nets[k]=S._nets[k]||{user:'',fol:''};S._nets[k].on=!S._nets[k].on;go('onboarding')}
+async function obCreateAccounts(){
+ S._nets=S._nets||{};
+ const chosen=Object.keys(S._nets).filter(k=>S._nets[k].on&&(S._nets[k].user||'').trim());
+ if(chosen.length===0){toast('Coche au moins un réseau et renseigne ton @username 🙂');return}
+ const rows=chosen.map(k=>({user_id:S.me.id,platform:k,username:S._nets[k].user.trim().replace(/^@/,''),follower_count:+(S._nets[k].fol||0)}));
+ const{data,error}=await sb.from('social_accounts').insert(rows).select();
+ if(error){err(error.code==='23505'?{message:'Un de ces comptes est déjà utilisé sur FollowMatch'}:error);return}
+ S.accts=data;S.acct=data[0];go('waitverif');
 }
 async function obFinish(){
  if(!S._niche){toast('Choisis ta niche 🙂');return}
@@ -242,20 +258,28 @@ async function obFinish(){
  await refreshMatches();go('swipe');
 }
 function vWait(){
- return `<div class="wrap center" style="padding-top:40px">
-   <div class="big">🕐</div><h2 class="mt8">Vérification de ton compte</h2>
-   <p class="sub mt8">Place ce code dans ta <b>bio ${pfLabel(S.acct?.platform)}</b> (${esc('@'+(S.acct?.username||''))})${(S.acct?.platform==='snapchat')?' — ou dans ton nom affiché si Snapchat ne permet pas de bio':''} — on vérifie sous 24h, souvent bien plus vite.</p>
-   <div class="code">${esc(S.acct?.verification_code||'FM-....')}</div>
-   <p class="sub">Statut : <b>${S.acct?.verification_status==='rejected'?'❌ refusé — code introuvable dans la bio':'en attente de vérification'}</b></p>
-   <button class="btn mt16" onclick="checkVerif()">J'ai placé le code / Actualiser</button>
+ const cards=(S.accts||[]).map(a=>{
+   const st=a.verification_status;
+   const stTxt=st==='verified'?'<span style="color:var(--ok)">✔ vérifié</span>':st==='rejected'?'<span style="color:var(--bad)">❌ code introuvable</span>':'en attente';
+   return `<div class="card mt8"><div class="row"><b>${esc(pfLabel(a.platform))}</b><div class="spacer"></div><span class="sub">${stTxt}</span></div>
+     <p class="sub mt8">Place ce code dans ta bio ${esc(pfLabel(a.platform))} (${esc('@'+a.username)})${a.platform==='snapchat'?' — ou dans ton nom affiché':''} :</p>
+     <div class="code" style="font-size:22px">${esc(a.verification_code)}</div></div>`;
+ }).join('');
+ const anyVerified=myVerifiedPlatforms().length>0;
+ return `<div class="wrap">
+   <div class="center"><div class="big">🕐</div><h2 class="mt8">Vérifie tes réseaux</h2>
+   <p class="sub mt8">On vérifie que chaque compte t'appartient — sous 24h, souvent bien plus vite. Tu pourras commencer dès qu'<b>au moins un</b> réseau est vérifié.</p></div>
+   ${cards}
+   <button class="btn mt16" onclick="checkVerif()">J'ai placé les codes / Actualiser</button>
+   ${anyVerified?`<button class="btn ghost mt8" onclick="route()">Continuer (${myVerifiedPlatforms().length} réseau(x) vérifié(s))</button>`:''}
    <button class="btn ghost mt8" onclick="doLogout()">Se déconnecter</button>
  </div>`;
 }
 async function checkVerif(){
- const{data}=await sb.from('social_accounts').select('*').eq('id',S.acct.id).single();
- if(data)S.acct=data;
- if(S.acct.verification_status==='verified'){toast('✅ Compte vérifié !');route()}
- else{toast('Toujours en attente — l\'équipe vérifie ta bio '+pfLabel(S.acct?.platform)+' au plus vite.');go('waitverif')}
+ const{data}=await sb.from('social_accounts').select('*').eq('user_id',S.me.id).order('created_at');
+ if(data){S.accts=data;S.acct=data.find(a=>a.verification_status==='verified')||data[0]}
+ if(myVerifiedPlatforms().length>0){toast('✅ Réseau vérifié !');route()}
+ else{toast('Toujours en attente — l\'équipe vérifie tes bios au plus vite.');go('waitverif')}
 }
 
 /* ---------- swipe ---------- */
@@ -263,21 +287,27 @@ function vSwipe(){
  const d=S.deck;
  const admin=S.me?.is_admin?`<button class="btn ghost small" onclick="go('admin')">🛠 Admin</button>`:'';
  const cards=d.length===0?`<div class="card center" style="padding:48px 20px"><div class="big">🌙</div><h2 class="mt8">Plus de profils pour l'instant</h2><p class="sub mt8">Reviens un peu plus tard — de nouveaux créateurs arrivent en continu.</p></div>`
-  :d.slice(0,3).map((p,i)=>`
+  :d.slice(0,3).map((p,i)=>{
+   const accs=p.accounts||[]; const shared=p.shared||[];
+   const sharedAccs=accs.filter(a=>shared.includes(a.platform));
+   const name=(accs[0]&&accs[0].username)?('@'+accs[0].username):p.display_name;
+   const sharedPills=sharedAccs.map(a=>`<span class="pill" style="background:var(--grad)">${esc(pfLabel(a.platform))}</span>`).join(' ');
+   const links=sharedAccs.map(a=>`<a class="sub" style="text-decoration:none" href="${pfUrl(a.platform,a.username)}" target="_blank" rel="noopener">${esc(pfLabel(a.platform))} : @${esc(a.username)} ↗</a>`).join('<br>');
+   return `
    <div class="pcard ${i===1?'back1':i===2?'back2':''}" id="card-${p.user_id}" style="z-index:${9-i}">
      <div class="center"><div class="avatar" style="width:110px;height:110px;font-size:40px">${initials(p.display_name)}</div>
-       <h2>@${esc(p.username)}</h2>
+       <h2>${esc(p.display_name)}</h2>
+       <p class="sub" style="margin-top:2px">En commun : ${sharedPills||'—'}</p>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
-         <span class="pill" style="background:var(--grad)">${esc(pfLabel(p.platform))}</span>
          <span class="pill" style="background:var(--panel2)">${esc(p.niche||'—')}</span>
-         <span class="pill" style="background:var(--panel2)">${fmtFol(p.follower_count)} ${pfFollow(p.platform)}</span>
        </div>
        <div class="mt8">${lvBadge(p.trust_score)}</div>
        <p class="sub mt16">${esc(p.bio)}</p>
      </div>
      <div class="spacer"></div>
-     <a class="sub center" style="text-decoration:none" href="${pfUrl(p.platform,p.username)}" target="_blank" rel="noopener">Voir le profil ${esc(pfLabel(p.platform))} ↗</a>
-   </div>`).reverse().join('');
+     <div class="center" style="font-size:13px;line-height:1.7">${links}</div>
+   </div>`;
+   }).reverse().join('');
  return `<div class="wrap">
    <div class="row"><span class="logo">FollowMatch</span><div class="spacer"></div>${admin}<span class="pill" style="background:var(--panel2)">🎯 ${esc(S.me?.niche||'')}</span></div>
    <div class="deck">${cards}</div>
@@ -309,7 +339,7 @@ function showMatchModal(p,matchId){
  box.innerHTML=`<div class="box">
    <div class="big">🎉</div><h2>C'est un match !</h2>
    <div class="duo"><div class="avatar">${initials(S.me.display_name)}</div><div class="avatar">${initials(p.display_name)}</div></div>
-   <p class="sub">@${esc(p.username)} veut aussi te suivre.<br>Le tunnel de validation démarre — vous avez 48h par étape.</p>
+   <p class="sub">${esc(p.display_name)} veut aussi te suivre.<br>Réseaux en commun : <b>${(p.shared||[]).map(pfLabel).join(', ')||'—'}</b>.<br>Le tunnel de validation démarre — vous avez 48h par étape.</p>
    <button class="btn mt16" onclick="closeModal();go('detail','${matchId}')">Voir le match</button>
    <button class="btn ghost mt8" onclick="closeModal()">Continuer à swiper</button>
  </div>`;
@@ -345,7 +375,7 @@ function retentionDue(){
 function vMatches(){
  const item=m=>{const[c,l]=stLabel(m);const o=otherOf(m);return `<div class="mitem" onclick="go('detail','${m.id}')">
    <div class="avatar">${initials(o.display_name)}</div>
-   <div><b>@${esc(otherUsername(m))}</b><div class="st ${c}">${l}</div></div>
+   <div><b>${esc(o.display_name)}</b> ${sharedBadges(m)}<div class="st ${c}">${l}</div></div>
    <div class="spacer"></div>${m.expires_at&&!['completed','expired','reported'].includes(m.status)?`<span class="timer">⏳ ${left(m.expires_at)}</span>`:''}
  </div>`};
  const act=S.matches.filter(needsMe);
@@ -372,28 +402,31 @@ async function retAnswer(mid,day,still){
 }
 function vDetail(){
  const m=S.matches.find(x=>x.id===S.curMatch);if(!m)return vMatches();
- const u='@'+esc(otherUsername(m));const o=otherOf(m);const A=iAmA(m);
- const pf=otherPlatform(m);const lab=pfLabel(pf);const fol=pfFollow(pf);
+ const o=otherOf(m);const A=iAmA(m);
+ const sh=sharedAccounts(m); const u=o.display_name;
+ const netNames=sh.map(a=>pfLabel(a.platform)).join(', ')||'vos réseaux communs';
  const steps=[
-  {t:(A?'1 · Tu suis ':'1 · '+u+' te suit')+(A?u:''), p:A?'Ouvre son '+lab+', abonne-toi, puis déclare-le ici.':'Il/elle doit te suivre en premier.', done:!!m.step1_a_followed_at, cur:m.status==='pending_a_follow'},
-  {t:A?'2 · '+u+' confirme ton follow':'2 · Tu confirmes le follow reçu', p:A?'Il/elle vérifie ses '+fol+'.':'Vérifie tes '+fol+' '+lab+' et confirme ici.', done:!!m.step2_b_confirmed_at, cur:m.status==='pending_b_confirm'},
-  {t:A?'3 · '+u+' te suit en retour':'3 · Tu suis '+u+' en retour', p:A?'Et le déclare de son côté.':'Ouvre son '+lab+', abonne-toi, déclare-le.', done:!!m.step3_b_followed_back_at, cur:m.status==='pending_b_followback'},
-  {t:A?'4 · Tu confirmes le follow reçu':'4 · '+u+' confirme ton follow', p:'Dernière confirmation → match complété : +10 points chacun.', done:!!m.step4_a_confirmed_at, cur:m.status==='pending_a_confirm'}
+  {t:(A?'1 · Tu suis ':'1 · '+esc(u)+' te suit')+(A?' '+esc(u):''), p:A?'Ouvre ses comptes ('+netNames+'), abonne-toi, puis déclare-le ici.':'Il/elle doit te suivre en premier.', done:!!m.step1_a_followed_at, cur:m.status==='pending_a_follow'},
+  {t:A?'2 · '+esc(u)+' confirme ton follow':'2 · Tu confirmes le follow reçu', p:A?'Il/elle vérifie ses abonnés.':'Vérifie sur '+netNames+' et confirme ici.', done:!!m.step2_b_confirmed_at, cur:m.status==='pending_b_confirm'},
+  {t:A?'3 · '+esc(u)+' te suit en retour':'3 · Tu suis '+esc(u)+' en retour', p:A?'Et le déclare de son côté.':'Ouvre ses comptes ('+netNames+'), abonne-toi, déclare-le.', done:!!m.step3_b_followed_back_at, cur:m.status==='pending_b_followback'},
+  {t:A?'4 · Tu confirmes le follow reçu':'4 · '+esc(u)+' confirme ton follow', p:'Dernière confirmation → match complété : +10 points chacun.', done:!!m.step4_a_confirmed_at, cur:m.status==='pending_a_confirm'}
  ];
  let cta='';
- const btnTik=`<a class="btn ghost" style="text-decoration:none" href="${pfUrl(pf,otherUsername(m))}" target="_blank" rel="noopener">Ouvrir le ${lab} de ${u} ↗</a>`;
+ const btnTik=sh.map(a=>`<a class="btn ghost ${sh.length>1?'small':''}" style="text-decoration:none;${sh.length>1?'display:inline-block;margin:2px':''}" href="${pfUrl(a.platform,a.username)}" target="_blank" rel="noopener">Ouvrir ${pfLabel(a.platform)} : @${esc(a.username)} ↗</a>`).join('');
  if(m.status==='pending_a_follow'&&A)        cta=btnTik+`<button class="btn mt8" onclick="stepDo('${m.id}','a_followed')">J'ai suivi ✔</button>`;
  else if(m.status==='pending_b_confirm'&&!A) cta=`<button class="btn" onclick="stepDo('${m.id}','b_confirm')">Follow reçu ✔</button><button class="btn ghost mt8" onclick="reportPb('${m.id}')">Je ne vois pas ce follow 🚩</button>`;
  else if(m.status==='pending_b_followback'&&!A) cta=btnTik+`<button class="btn mt8" onclick="stepDo('${m.id}','b_followed_back')">J'ai suivi en retour ✔</button>`;
  else if(m.status==='pending_a_confirm'&&A)  cta=`<button class="btn" onclick="stepDo('${m.id}','a_confirm')">Follow reçu ✔ — compléter le match</button><button class="btn ghost mt8" onclick="reportPb('${m.id}')">Je ne vois pas ce follow 🚩</button>`;
  else if(m.status==='completed') cta=`<div class="card center" style="border-color:var(--ok)"><b style="color:var(--ok)">Match complété ✅</b><p class="sub mt8">Vous vous suivez mutuellement. Contrôles fidélité à J7 et J30.</p></div>`;
- else if(m.status==='expired')  cta=`<div class="card center" style="border-color:var(--bad)"><b style="color:var(--bad)">Match expiré ⌛</b><p class="sub mt8">${m.expired_fault===S.me.id?'Tu n\'as pas agi dans les 48h : −10 points. Le prochain ira mieux 💪':u+' n\'a pas agi à temps. Son score a baissé — le tien est intact.'}</p></div>`;
+ else if(m.status==='expired')  cta=`<div class="card center" style="border-color:var(--bad)"><b style="color:var(--bad)">Match expiré ⌛</b><p class="sub mt8">${m.expired_fault===S.me.id?'Tu n\'as pas agi dans les 48h : −10 points. Le prochain ira mieux 💪':esc(u)+' n\'a pas agi à temps. Son score a baissé — le tien est intact.'}</p></div>`;
  else if(m.status==='reported') cta=`<div class="card center"><p class="sub">🚩 Signalement en cours de vérification par l'équipe.</p></div>`;
- else cta=`<div class="card center"><p class="sub">⏳ Au tour de ${u} — reviens un peu plus tard.${m.expires_at?' <br><span class="timer">'+left(m.expires_at)+'</span>':''}</p></div>`;
+ else cta=`<div class="card center"><p class="sub">⏳ Au tour de ${esc(u)} — reviens un peu plus tard.${m.expires_at?' <br><span class="timer">'+left(m.expires_at)+'</span>':''}</p></div>`;
  return `<div class="wrap">
    <button class="btn ghost small" onclick="go('matches')">← Matchs</button>
    <div class="center mt16"><div class="avatar" style="width:80px;height:80px;font-size:30px;margin:0 auto">${initials(o.display_name)}</div>
-     <h2 class="mt8">${u}</h2><div class="mt8">${lvBadge(o.trust_score)}</div></div>
+     <h2 class="mt8">${esc(u)}</h2><div class="mt8">${sharedBadges(m)}</div><div class="mt8">${lvBadge(o.trust_score)}</div>
+     <p class="sub mt8">Vos réseaux communs — c'est là que vous vous suivez :</p>
+     <div style="font-size:13.5px;line-height:1.8">${sh.map(a=>`<a class="sub" style="text-decoration:none" href="${pfUrl(a.platform,a.username)}" target="_blank" rel="noopener">${esc(pfLabel(a.platform))} : @${esc(a.username)} ↗</a>`).join('<br>')}</div></div>
    <div class="card mt16">${steps.map(s=>`<div class="step ${s.done?'done':''} ${s.cur?'cur':''}"><div class="dot">${s.done?'✓':'●'}</div><div><h4>${s.t}</h4><p>${s.p}</p></div></div>`).join('')}</div>
    <div class="mt16">${cta}</div>
    ${['completed','expired','reported'].includes(m.status)?'':`<button class="btn ghost mt8" onclick="reportPb('${m.id}')">Signaler un problème</button>`}
@@ -439,7 +472,8 @@ function vProfile(){
    <div class="center mt16">
      <div class="avatar" style="width:84px;height:84px;font-size:32px;margin:0 auto">${initials(u.display_name)}</div>
      <h2 class="mt8">${esc(u.display_name)}</h2>
-     <p class="sub">${esc(pfLabel(S.acct?.platform))} · @${esc(S.acct?.username||'')} <span style="color:var(--ok)">✔ vérifié</span> · ${esc(u.niche||'')}</p>
+     <p class="sub">${esc(u.niche||'')}</p>
+     <div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px">${(S.accts||[]).map(a=>`<span class="pill" style="background:${a.verification_status==='verified'?'var(--grad)':'var(--panel2)'}">${esc(pfLabel(a.platform))}${a.verification_status==='verified'?'':' ⏳'}</span>`).join('')}</div>
    </div>
    ${gauge(u.trust_score)}
    <div class="center"><span class="pill ${lc}" style="font-size:14px">🛡 Niveau ${lv}</span></div>
@@ -459,10 +493,9 @@ function vSettings(){
  return `<div class="wrap">
    <button class="btn ghost small" onclick="go('profile')">← Profil</button>
    <h2 class="mt16">Réglages</h2>
-   <div class="card mt16"><b>Compte ${esc(pfLabel(S.acct?.platform))} connecté</b>
-     <p class="sub mt8">@${esc(S.acct?.username||'')} · vérifié ✔</p>
-     <div class="field mt8"><label>Nombre de ${pfFollow(S.acct?.platform)} (mets-le à jour de temps en temps)</label><input id="s-fol" type="number" min="0" value="${S.acct?.follower_count||0}"></div>
-     <button class="btn small" onclick="saveFol()">Mettre à jour</button>
+   <div class="card mt16"><b>Tes réseaux connectés</b>
+     ${(S.accts||[]).map(a=>`<div class="row mt8" style="gap:8px"><span class="pill" style="background:${a.verification_status==='verified'?'var(--grad)':'var(--panel2)'}">${esc(pfLabel(a.platform))}</span><span class="sub">@${esc(a.username)} · ${a.verification_status==='verified'?'vérifié ✔':'en attente ⏳'}</span></div>`).join('')}
+     <p class="sub mt8" style="font-size:12px">Pour ajouter un réseau supplémentaire, écris-nous — bientôt directement ici.</p>
    </div>
    <div class="card mt16"><b>Compte</b>
      <p class="sub mt8">Connecté en ${esc(S.session?.user?.email||'')}</p>
