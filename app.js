@@ -30,7 +30,7 @@ function iAmA(m){return m.user_a===S.me.id}
 /* ---------- routing ---------- */
 function go(v,arg){
  S.view=v;S.curMatch=arg||null;
- const views={landing:vLanding,onboarding:vOnboarding,waitverif:vWait,swipe:vSwipe,matches:vMatches,detail:vDetail,profile:vProfile,settings:vSettings,admin:vAdmin};
+ const views={landing:vLanding,onboarding:vOnboarding,waitverif:vWait,swipe:vSwipe,matches:vMatches,detail:vDetail,profile:vProfile,settings:vSettings,admin:vAdmin,resetpw:vResetPw};
  $('screen').innerHTML=(views[v]||vLanding)();
  $('screen').scrollTop=0;
  const main=['swipe','matches','profile'].includes(v);
@@ -91,12 +91,19 @@ async function refreshAdmin(){
 /* ---------- auth ---------- */
 async function boot(){
  if(!CONFIGURED){go('landing');return}
+ if(location.hash.includes('type=recovery'))S._recovery=true;
  const{data:{session}}=await sb.auth.getSession();
  S.session=session;
- sb.auth.onAuthStateChange((_e,sess)=>{const had=!!S.session;S.session=sess;if(!!sess!==had)route()});
- route();
+ sb.auth.onAuthStateChange((ev,sess)=>{
+  if(ev==='PASSWORD_RECOVERY'){S.session=sess;S._recovery=true;go('resetpw');return}
+  const had=!!S.session;S.session=sess;
+  if(S._recovery)return;
+  if(!!sess!==had)route()
+ });
+ if(S._recovery)go('resetpw');else route();
 }
 async function route(){
+ if(S._recovery){go('resetpw');return}
  if(!S.session){go('landing');return}
  try{await loadMe()}catch(e){err(e);go('landing');return}
  if(!S.me.display_name){S.ob=1;go('onboarding');return}
@@ -123,6 +130,35 @@ async function doLogin(){
  if(error)err(error);
 }
 async function doLogout(){await sb.auth.signOut();S.me=null;S.acct=null;S.matches=[];go('landing')}
+async function doForgot(){
+ const email=$('a-email').value.trim();
+ if(!email){toast('Écris d\'abord ton e-mail dans le champ ci-dessus 🙂');return}
+ const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+ if(error){err(error);return}
+ toast('📬 E-mail envoyé à '+esc(email)+' — clique le lien reçu pour choisir un nouveau mot de passe. (Pense au dossier spam.)');
+}
+function vResetPw(){
+ return `<div class="wrap" style="padding-top:40px">
+   <div class="center"><div class="big">🔑</div><h2 class="mt8">Choisis un nouveau mot de passe</h2>
+   <p class="sub mt8">Ton identité est confirmée via le lien e-mail — il ne reste qu'à en choisir un nouveau.</p></div>
+   <div class="card mt16">
+     <div class="field"><label>Nouveau mot de passe</label><input id="r-pw1" type="password" placeholder="8 caractères minimum"></div>
+     <div class="field"><label>Confirme-le</label><input id="r-pw2" type="password" placeholder="Encore une fois"></div>
+     <button class="btn" onclick="doSetNewPw()">Enregistrer et continuer</button>
+   </div>
+ </div>`;
+}
+async function doSetNewPw(){
+ const p1=$('r-pw1').value,p2=$('r-pw2').value;
+ if(p1.length<8){toast('8 caractères minimum 🙂');return}
+ if(p1!==p2){toast('Les deux mots de passe ne sont pas identiques');return}
+ const{error}=await sb.auth.updateUser({password:p1});
+ if(error){err(error);return}
+ S._recovery=false;
+ history.replaceState(null,'',location.pathname);
+ toast('✅ Nouveau mot de passe enregistré — te revoilà !');
+ route();
+}
 
 /* ---------- écrans ---------- */
 function vLanding(){
@@ -144,6 +180,7 @@ function vLanding(){
      </div>
      <div class="field"><label>E-mail</label><input id="a-email" type="email" placeholder="toi@email.com"></div>
      <div class="field"><label>Mot de passe</label><input id="a-pw" type="password" placeholder="8 caractères minimum"></div>
+     ${mode==='login'?'<p class="sub" style="font-size:12.5px;text-align:right;margin-top:-6px;margin-bottom:10px"><span class="link" onclick="doForgot()">Mot de passe oublié ?</span></p>':''}
      <button class="btn" id="a-go" ${CONFIGURED?'':'disabled'} onclick="${mode==='signup'?'doSignup()':'doLogin()'}">${mode==='signup'?'Créer mon compte':'Se connecter'}</button>
      <p class="sub center mt8" style="font-size:12px">${mode==='signup'?'En continuant tu acceptes les CGU. 100 % gratuit.':' '}</p>
    </div>
