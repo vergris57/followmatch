@@ -57,6 +57,50 @@ function exchBox(otherName,iFollowNet,myNet){
  </div>`;
 }
 
+/* ---------- notifications push ---------- */
+const VAPID_PUBLIC='BIiZJ3EIee5G56Woa1hpq0Cxdoqu93osQFGvHxjNnhjn5nPYkJMLVoN6zQR_Ia0gk7IEQ4pMOV_R4q6VuJ20pT8';
+function pushOK(){return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window}
+function b64ToU8(s){const pad='='.repeat((4-s.length%4)%4);const b=(s+pad).replace(/-/g,'+').replace(/_/g,'/');const raw=atob(b);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)))}
+async function pushSubscribe(){
+ const reg=await navigator.serviceWorker.ready;
+ let sub=await reg.pushManager.getSubscription();
+ if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToU8(VAPID_PUBLIC)});
+ const j=sub.toJSON();
+ await sb.from('push_subscriptions').upsert({user_id:S.me.id,endpoint:sub.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:'endpoint'});
+}
+async function enableNotifs(){
+ if(!pushOK()){toast('Ton navigateur ne gère pas les notifications 🙈');return}
+ try{
+   const perm=await Notification.requestPermission();
+   S._notifAsked=true;
+   if(perm!=='granted'){toast('Notifications non activées — tu peux les réactiver dans les réglages du navigateur.');}
+   else{await pushSubscribe();toast('🔔 Notifications activées !');}
+   if(S.view==='settings')$('screen').innerHTML=vSettings();else if(S.view==='swipe')$('screen').innerHTML=vSwipe();
+ }catch(e){err(e)}
+}
+async function ensurePushSubscribed(){
+ if(!pushOK()||Notification.permission!=='granted')return;
+ try{await pushSubscribe()}catch(e){}
+}
+function dismissNotifPrompt(){S._notifAsked=true;if(S.view==='swipe')$('screen').innerHTML=vSwipe()}
+function notifBanner(){
+ if(!pushOK()||Notification.permission!=='default'||S._notifAsked)return '';
+ return `<div class="card" style="border-color:var(--violet);display:flex;gap:10px;align-items:center;margin-bottom:14px">
+   <span style="font-size:22px">🔔</span>
+   <div style="flex:1"><b>Active les notifications</b><p class="sub" style="font-size:12.5px">Sois prévenu dès qu'un match ou une action t'attend.</p></div>
+   <button class="btn small" onclick="enableNotifs()">Activer</button>
+   <button class="btn ghost small" onclick="dismissNotifPrompt()">Plus tard</button>
+ </div>`;
+}
+function notifSettingsCard(){
+ let inner;
+ if(!pushOK())inner=`<p class="sub mt8">Non géré par ce navigateur.</p>`;
+ else if(Notification.permission==='granted')inner=`<p class="sub mt8" style="color:var(--ok)">Activées ✔ — alerte pour un match, quand c'est à toi d'agir, et un rappel avant l'expiration.</p>`;
+ else if(Notification.permission==='denied')inner=`<p class="sub mt8">Bloquées dans ton navigateur — pour les réactiver, autorise les notifications pour ce site dans les réglages du navigateur.</p>`;
+ else inner=`<p class="sub mt8">Reçois une alerte pour un nouveau match, quand c'est à toi d'agir, et avant l'expiration.</p><button class="btn small mt8" onclick="enableNotifs()">Activer les notifications</button>`;
+ return `<div class="card mt16"><b>🔔 Notifications</b>${inner}</div>`;
+}
+
 /* ---------- routing ---------- */
 function go(v,arg){
  S.view=v;S.curMatch=arg||null;
@@ -142,6 +186,7 @@ async function route(){
  if(myVerifiedPlatforms().length===0){go('waitverif');return}   // aucun réseau encore vérifié
  if(!S.me.target_platform){S.ob=3;S._target=undefined;go('onboarding');return}   // pas encore d'objectif choisi
  await refreshMatches();
+ ensurePushSubscribed();
  go('swipe');
 }
 async function doSignup(){
@@ -329,6 +374,7 @@ function vSwipe(){
    }).reverse().join('');
  return `<div class="wrap">
    <div class="row"><span class="logo">FollowMatch</span><div class="spacer"></div>${admin}<span class="pill" style="background:${GOAL_BG}">🎯 Objectif : ${esc(pfLabel(myT))}</span></div>
+   ${notifBanner()}
    <div class="deck">${cards}</div>
    ${d.length?`<div class="actions">
      <button class="act" onclick="swipe(false)">✖️</button>
@@ -529,6 +575,7 @@ function vSettings(){
      ${(S.accts||[]).map(a=>`<div class="row mt8" style="gap:8px"><span class="pill" style="background:${a.verification_status==='verified'?'var(--grad)':'var(--panel2)'}">${esc(pfLabel(a.platform))}</span><span class="sub">@${esc(a.username)} · ${a.verification_status==='verified'?'vérifié ✔':'en attente ⏳'}${a.platform===S.me.target_platform?' · 🎯 objectif':''}</span></div>`).join('')}
      <p class="sub mt8" style="font-size:12px">Pour ajouter un réseau supplémentaire, écris-nous — bientôt directement ici.</p>
    </div>
+   ${notifSettingsCard()}
    <div class="card mt16"><b>Compte</b>
      <p class="sub mt8">Connecté en ${esc(S.session?.user?.email||'')}</p>
      <button class="btn ghost small mt8" onclick="doLogout()">Se déconnecter</button>
