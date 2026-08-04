@@ -57,6 +57,94 @@ function exchBox(otherName,iFollowNet,myNet){
  </div>`;
 }
 
+/* ---------- installation obligatoire (PWA) + avatars + gains ---------- */
+function isInstalled(){try{return window.matchMedia('(display-mode: standalone)').matches||window.matchMedia('(display-mode: fullscreen)').matches||window.navigator.standalone===true}catch(e){return false}}
+function isIOS(){return /iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+let _installPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_installPrompt=e;if(S.view==='installgate')$('screen').innerHTML=vInstallGate()});
+window.addEventListener('appinstalled',()=>{_installPrompt=null;toast('✅ App installée — bienvenue !');setTimeout(()=>route(),400)});
+async function doInstall(){ if(_installPrompt){ _installPrompt.prompt(); try{await _installPrompt.userChoice}catch(e){} _installPrompt=null; if(!isInstalled()&&S.view==='installgate')$('screen').innerHTML=vInstallGate(); } else { toast('Suis les étapes ci-dessous pour installer 🙂'); } }
+function GATED(v){return ['swipe','matches','profile','detail','settings','admin','leaderboard'].includes(v)}
+function vInstallGate(){
+ const ios=isIOS();
+ const btn=(!ios&&_installPrompt)?`<button class="btn mt16" onclick="doInstall()">📲 Installer l'app maintenant</button>`:'';
+ const how=ios
+  ? `<div class="card mt16" style="text-align:left"><b>Sur iPhone / iPad</b><ol class="sub" style="margin:8px 0 0;padding-left:18px;line-height:1.9">
+       <li>Appuie sur <b>Partager</b> (le carré avec une flèche ↑, en bas de Safari)</li>
+       <li>Choisis <b>« Sur l'écran d'accueil »</b></li>
+       <li>Appuie sur <b>Ajouter</b>, puis ouvre FollowsMatch depuis ton écran d'accueil</li></ol></div>`
+  : `<div class="card mt16" style="text-align:left"><b>Sur Android</b><ol class="sub" style="margin:8px 0 0;padding-left:18px;line-height:1.9">
+       <li>Appuie sur <b>Installer</b> ci-dessus (ou le menu <b>⋮</b> → <b>Installer l'application</b>)</li>
+       <li>Confirme — l'icône apparaît sur ton écran d'accueil</li>
+       <li>Ouvre FollowsMatch depuis là</li></ol></div>`;
+ return `<div class="wrap" style="padding-top:28px">
+   <div class="center">
+     <div class="logo">FollowsMatch</div>
+     <div class="big mt16">📲</div>
+     <h1 style="font-size:23px" class="mt8">Installe l'app pour continuer</h1>
+     <p class="sub mt8">FollowsMatch s'utilise comme une vraie app installée sur ton téléphone : plus rapide, plein écran, et tu reçois les alertes de match. ${S.session?'Ton compte est prêt ✅':''}</p>
+   </div>
+   ${btn}
+   ${how}
+   <div class="steps3 mt16">
+     <div class="card"><div class="num">1</div><div><b>Tes réseaux + ton objectif</b><p class="sub">Choisis LE réseau où tu veux gagner des abonnés.</p></div></div>
+     <div class="card"><div class="num">2</div><div><b>Match & échange croisé</b><p class="sub">L'autre te suit sur ton objectif ; toi sur le sien.</p></div></div>
+     <div class="card"><div class="num">3</div><div><b>Grandis pour de vrai</b><p class="sub">Follows vérifiés, profils sérieux mis en avant. 100 % gratuit.</p></div></div>
+   </div>
+   <p class="sub center mt16" style="font-size:12.5px">Déjà installée ? Ouvre <b>FollowsMatch</b> depuis ton écran d'accueil (pas depuis le navigateur).</p>
+   ${S.session?`<button class="btn ghost mt16" onclick="doLogout()">Se déconnecter</button>`:`<button class="btn ghost mt16" onclick="go('landing')">← Retour</button>`}
+ </div>`;
+}
+/* avatars colorés (déterministes selon le pseudo) */
+function nameHue(n){let h=7;const s=(n||'?');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h}
+function avatarStyle(n){const h=nameHue(n);return `background:linear-gradient(135deg,hsl(${h},68%,58%),hsl(${(h+42)%360},68%,46%))`}
+function av(n,px,fs){px=px||44;fs=fs||Math.round(px*0.42);return `<div class="avatar" style="${avatarStyle(n)};width:${px}px;height:${px}px;font-size:${fs}px">${initials(n)}</div>`}
+/* gains (abonnés gagnés) — calculé côté app à partir des matchs complétés */
+function myGains(){const c=(S.matches||[]).filter(m=>m.status==='completed');const week=c.filter(m=>m.completed_at&&(Date.now()-new Date(m.completed_at))<7*864e5).length;return {total:c.length,week}}
+function gainsCard(){const g=myGains();return `<div class="card mt16" style="text-align:center;background:linear-gradient(135deg,rgba(139,92,246,.16),rgba(236,72,153,.16));border-color:rgba(139,92,246,.5)">
+   <p class="sub" style="font-size:12.5px">Abonnés gagnés grâce à FollowsMatch</p>
+   <div style="font-size:46px;font-weight:800;line-height:1.1;background:${GOAL_BG};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">+${g.total}</div>
+   <p class="sub" style="font-size:12.5px">${g.week>0?'dont +'+g.week+' cette semaine 🔥':'complète un échange pour voir ce chiffre grimper'}</p>
+   <button class="btn small mt8" onclick="shareGains()">Partager mes gains 📲</button>
+ </div>`}
+async function shareGains(){const g=myGains();const url=inviteUrl();const text=`J'ai gagné ${g.total} abonné${g.total>1?'s':''} sur FollowsMatch 🚀 Un follow contre un follow, vérifié. Rejoins-moi :`;try{if(navigator.share){await navigator.share({title:'FollowsMatch',text,url});return}}catch(e){return}copyInvite()}
+/* écran « pile vide » — anti démarrage à froid */
+function vEmptyDeck(){
+ const myT=S.me.target_platform;
+ const notifBtn=(pushOK()&&Notification.permission!=='granted')?`<button class="btn ghost mt8" onclick="enableNotifs()">🔔 Préviens-moi dès qu'il y a des profils</button>`:'';
+ return `<div class="card center" style="padding:36px 20px">
+   <div class="big">🌱</div>
+   <h2 class="mt8">Pas encore de profil à échanger</h2>
+   <p class="sub mt8">FollowsMatch grandit chaque jour. Plus il y a de créateurs sur <b>${esc(pfLabel(myT))}</b>, plus tu auras d'échanges — invite les tiens pour lancer la machine 👇</p>
+   <button class="btn mt16" onclick="shareInvite()">Inviter des amis 🎁 (+5 pts chacun)</button>
+   ${notifBtn}
+   <button class="btn ghost mt8" onclick="refreshDeck()">Actualiser</button>
+ </div>`;
+}
+/* aperçu « mon profil vu par les autres » */
+function previewMyProfile(){
+ const u=S.me,myT=u.target_platform;
+ const acc=(S.accts||[]).find(a=>a.platform===myT&&a.verification_status==='verified')||(S.accts||[]).find(a=>a.platform===myT);
+ const box=document.createElement('div');box.id='modal';
+ box.innerHTML=`<div class="box" style="max-width:340px">
+   <p class="sub" style="font-size:12px">Voici comment les autres te voient 👇</p>
+   <div class="pcard" style="position:relative;margin:10px 0 0;transform:none">
+     <div class="center">${av(u.display_name,92,34)}
+       <h2>${esc(u.display_name)}</h2>
+       <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(myT))}</span></div>
+       <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
+         <span class="pill" style="background:var(--panel2)">${esc(u.niche||'Créateur')}</span>
+         ${acc?`<span class="pill" style="background:var(--panel2)">${fmtFollowers(acc.follower_count)} ${pfFollow(myT)}</span>`:''}
+         ${lvBadge(u.trust_score)}
+       </div>
+       <p class="sub mt8">${esc(u.bio||'—')}</p>
+     </div>
+   </div>
+   <button class="btn mt16" onclick="closeModal()">Fermer</button>
+ </div>`;
+ document.body.appendChild(box);
+}
+
 /* ---------- notifications push ---------- */
 const VAPID_PUBLIC='BIiZJ3EIee5G56Woa1hpq0Cxdoqu93osQFGvHxjNnhjn5nPYkJMLVoN6zQR_Ia0gk7IEQ4pMOV_R4q6VuJ20pT8';
 function pushOK(){return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window}
@@ -103,6 +191,7 @@ function notifSettingsCard(){
 
 /* ---------- routing ---------- */
 function go(v,arg){
+ if(GATED(v)&&!isInstalled()){S.view='installgate';S.curMatch=arg||null;$('screen').innerHTML=vInstallGate();$('screen').scrollTop=0;$('nav').classList.add('hidden');return}
  S.view=v;S.curMatch=arg||null;
  const views={landing:vLanding,onboarding:vOnboarding,waitverif:vWait,swipe:vSwipe,matches:vMatches,detail:vDetail,profile:vProfile,settings:vSettings,admin:vAdmin,resetpw:vResetPw,leaderboard:vLeaderboard};
  $('screen').innerHTML=(views[v]||vLanding)();
@@ -357,12 +446,12 @@ async function checkVerif(){
 function vSwipe(){
  const d=S.deck;const myT=S.me.target_platform;
  const admin=S.me?.is_admin?`<button class="btn ghost small" onclick="go('admin')">🛠 Admin</button>`:'';
- const cards=d.length===0?`<div class="card center" style="padding:48px 20px"><div class="big">🌙</div><h2 class="mt8">Plus de profils pour l'instant</h2><p class="sub mt8">Reviens un peu plus tard — de nouveaux créateurs présents sur <b>${esc(pfLabel(myT))}</b> arrivent en continu.</p></div>`
+ const cards=d.length===0?vEmptyDeck()
   :d.slice(0,3).map((p,i)=>{
    const goal=p.target_platform;
    return `
    <div class="pcard ${i===1?'back1':i===2?'back2':''}" id="card-${p.user_id}" style="z-index:${9-i}">
-     <div class="center"><div class="avatar" style="width:92px;height:92px;font-size:34px">${initials(p.display_name)}</div>
+     <div class="center">${av(p.display_name,92,34)}
        <h2>${esc(p.display_name)}</h2>
        <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(goal))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
@@ -410,7 +499,7 @@ function showMatchModal(p,matchId){
  const box=document.createElement('div');box.id='modal';
  box.innerHTML=`<div class="box">
    <div class="big">🎉</div><h2>C'est un match !</h2>
-   <div class="duo"><div class="avatar">${initials(S.me.display_name)}</div><div class="avatar">${initials(p.display_name)}</div></div>
+   <div class="duo">${av(S.me.display_name,64,26)}${av(p.display_name,64,26)}</div>
    ${exchBox(p.display_name,p.target_platform,myT)}
    <button class="btn mt16" onclick="closeModal();go('detail','${matchId}')">Commencer l'échange</button>
    <button class="btn ghost mt8" onclick="closeModal()">Continuer à swiper</button>
@@ -445,7 +534,7 @@ function retentionDue(){
 }
 function vMatches(){
  const item=m=>{const[c,l]=stLabel(m);const o=otherOf(m);const mi=matchInfo(m);return `<div class="mitem" onclick="go('detail','${m.id}')">
-   <div class="avatar">${initials(o.display_name)}</div>
+   ${av(o.display_name)}
    <div><b>${esc(o.display_name)}</b> <span class="pill" style="background:${GOAL_BG};font-size:10px;padding:2px 8px">🎯 ${esc(pfLabel(mi.iFollowNet))}</span><div class="st ${c}">${l}</div></div>
    <div class="spacer"></div>${m.expires_at&&!['completed','expired','reported'].includes(m.status)?`<span class="timer">⏳ ${left(m.expires_at)}</span>`:''}
  </div>`};
@@ -500,7 +589,7 @@ function vDetail(){
  else cta=`<div class="card center"><p class="sub">⏳ Au tour de ${u} — reviens un peu plus tard.${m.expires_at?' <br><span class="timer">'+left(m.expires_at)+'</span>':''}</p></div>`;
  return `<div class="wrap">
    <button class="btn ghost small" onclick="go('matches')">← Matchs</button>
-   <div class="center mt16"><div class="avatar" style="width:80px;height:80px;font-size:30px;margin:0 auto">${initials(o.display_name)}</div>
+   <div class="center mt16"><div class="avatar" style="${avatarStyle(o.display_name)};width:80px;height:80px;font-size:30px;margin:0 auto">${initials(o.display_name)}</div>
      <h2 class="mt8">${u}</h2>
      <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(mi.iFollowNet))}</span></div>
      <div class="mt8">${lvBadge(o.trust_score)}</div></div>
@@ -587,7 +676,7 @@ function vLeaderboard(){
    const meRow=S.me&&r.display_name===S.me.display_name;
    return `<div class="mitem"${meRow?' style="border:1px solid var(--violet)"':''}>
      <div style="width:26px;text-align:center;font-size:17px">${medal}</div>
-     <div class="avatar">${initials(r.display_name)}</div>
+     ${av(r.display_name)}
      <div><b>${esc(r.display_name)}</b> ${lvBadge(r.trust_score)}</div>
      <div class="spacer"></div><div style="text-align:right"><b>${r.gains}</b><div class="sub" style="font-size:11px">échanges (7j)</div></div>
    </div>`;
@@ -620,11 +709,12 @@ function vProfile(){
  const rate=tot?Math.round(done/tot*100):100;
  return `<div class="wrap">
    <div class="row"><h1 style="font-size:22px">Ton profil</h1><div class="spacer"></div>
+     <button class="btn ghost small" onclick="previewMyProfile()" title="Aperçu de mon profil">👁</button>
      <button class="btn ghost small" onclick="go('leaderboard')">🏆</button>
      ${u.is_admin?'<button class="btn ghost small" onclick="go(\'admin\')">🛠</button>':''}
      <button class="btn ghost small" onclick="go('settings')">⚙️</button></div>
    <div class="center mt16">
-     <div class="avatar" style="width:84px;height:84px;font-size:32px;margin:0 auto">${initials(u.display_name)}</div>
+     <div class="avatar" style="${avatarStyle(u.display_name)};width:84px;height:84px;font-size:32px;margin:0 auto">${initials(u.display_name)}</div>
      <h2 class="mt8">${esc(u.display_name)}</h2>
      <p class="sub">${esc(u.niche||'Créateur')}</p>
      <div class="mt8"><span class="pill" style="background:${GOAL_BG};font-size:13px">🎯 Objectif : ${esc(pfLabel(u.target_platform))}</span></div>
@@ -633,6 +723,7 @@ function vProfile(){
    ${gauge(u.trust_score)}
    <div class="center"><span class="pill ${lc}" style="font-size:14px">🛡 Niveau ${lv}</span></div>
    ${myBadges().length?`<div class="row" style="gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px">${myBadges().map(b=>`<span class="pill" style="background:var(--panel2);font-size:12px">${b}</span>`).join('')}</div>`:''}
+   ${gainsCard()}
    <div class="stats mt24">
      <div class="stat"><b>${done}</b><span>matchs complétés</span></div>
      <div class="stat"><b>+${done}</b><span>abonnés gagnés via l'app</span></div>
