@@ -31,7 +31,12 @@ const PLATFORMS={
 };
 const PLATFORM_LIST=[['tiktok','TikTok'],['instagram','Instagram'],['snapchat','Snapchat'],['x','X']];
 const GOAL_BG='linear-gradient(135deg,#f59e0b,#ec4899)';
-function enc(u){return encodeURIComponent((u||'').replace(/^@/,''))}
+/* nettoyage robuste d'un pseudo : enlève @, espaces, et extrait le pseudo si on colle une URL complète */
+function cleanHandle(raw){var s=(raw||'').trim();if(/https?:\/\//i.test(s)||/(tiktok|instagram|snapchat|twitter|x)\.com/i.test(s)){s=(s.replace(/[?#].*$/,'').replace(/\/+$/,'').split('/').pop())||s;}return s.replace(/^@+/,'').replace(/\s+/g,'');}
+function enc(u){return encodeURIComponent(cleanHandle(u))}
+/* aperçu du lien construit, sous le champ de saisie (inscription) */
+function handlePreviewHTML(k){var v=(S._nets&&S._nets[k]&&S._nets[k].user)||'';var c=cleanHandle(v);if(!c)return'';var url=pfUrl(k,c);return '→ <a href="'+url+'" target="_blank" rel="noopener" style="color:#c4b5fd;text-decoration:none">'+esc(url.replace(/^https?:\/\//,''))+' ↗</a>';}
+function updHandlePreview(k){var el=document.getElementById('prev-'+k);if(el)el.innerHTML=handlePreviewHTML(k);}
 function pfUrl(pf,u){return (PLATFORMS[pf]||PLATFORMS.tiktok).url(u)}
 function pfLabel(pf){return (PLATFORMS[pf]||PLATFORMS.tiktok).label}
 function pfFollow(pf){return (PLATFORMS[pf]||PLATFORMS.tiktok).follow}
@@ -371,12 +376,13 @@ function vOnboarding(){
      return `<div class="card" style="padding:12px;margin-bottom:10px">
        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600">
          <input type="checkbox" ${on?'checked':''} onchange="toggleNet('${k}')" style="width:18px;height:18px"> ${l}</label>
-       ${on?`<div class="field mt8" style="margin-bottom:8px"><input id="net-${k}-u" placeholder="@ton_username_${k}" value="${esc(S._nets[k].user||'')}" oninput="S._nets['${k}'].user=this.value"></div>
+       ${on?`<div class="field mt8" style="margin-bottom:4px"><input id="net-${k}-u" placeholder="ton pseudo ${pfLabel(k)} (ou colle ton lien)" value="${esc(S._nets[k].user||'')}" oninput="S._nets['${k}'].user=this.value;updHandlePreview('${k}')"></div>
+             <div id="prev-${k}" class="sub" style="font-size:12px;margin:0 0 8px 2px;min-height:16px;font-family:ui-monospace,Menlo,monospace">${handlePreviewHTML(k)}</div>
              <div class="field" style="margin-bottom:0"><input id="net-${k}-f" type="number" min="0" placeholder="Tes ${pfFollow(k)} (environ)" value="${S._nets[k].fol||''}" oninput="S._nets['${k}'].fol=this.value"></div>`:''}
      </div>`;
    }).join('');
    return `<div class="wrap">${bar}
-   <h2>Tes réseaux</h2><p class="sub mb16">Coche <b>tous les réseaux où tu es présent</b> et mets ton @ pour chacun. Ils te serviront à suivre tes partenaires — et l'un d'eux sera ton objectif à l'étape suivante.</p>
+   <h2>Tes réseaux</h2><p class="sub mb16">Coche <b>tous les réseaux où tu es présent</b> et mets simplement ton <b>pseudo</b> pour chacun — pas besoin du « @ » ni du lien complet, l'app s'en occupe. Tu vois l'aperçu du lien sous chaque champ ✓. Ils te serviront à suivre tes partenaires — et l'un d'eux sera ton objectif à l'étape suivante.</p>
    ${rows}
    <button class="btn mt8" onclick="obCreateAccounts()">Générer mes codes de vérification</button></div>`;}
  // étape 3 : objectif + niche + bio
@@ -401,9 +407,9 @@ async function obSaveName(){
 function toggleNet(k){S._nets=S._nets||{};S._nets[k]=S._nets[k]||{user:'',fol:''};S._nets[k].on=!S._nets[k].on;go('onboarding')}
 async function obCreateAccounts(){
  S._nets=S._nets||{};
- const chosen=Object.keys(S._nets).filter(k=>S._nets[k].on&&(S._nets[k].user||'').trim());
- if(chosen.length===0){toast('Coche au moins un réseau et renseigne ton @username 🙂');return}
- const rows=chosen.map(k=>({user_id:S.me.id,platform:k,username:S._nets[k].user.trim().replace(/^@/,''),follower_count:+(S._nets[k].fol||0)}));
+ const chosen=Object.keys(S._nets).filter(k=>S._nets[k].on&&cleanHandle(S._nets[k].user));
+ if(chosen.length===0){toast('Coche au moins un réseau et renseigne ton pseudo 🙂');return}
+ const rows=chosen.map(k=>({user_id:S.me.id,platform:k,username:cleanHandle(S._nets[k].user),follower_count:+(S._nets[k].fol||0)}));
  const{data,error}=await sb.from('social_accounts').insert(rows).select();
  if(error){err(error.code==='23505'?{message:'Un de ces comptes est déjà utilisé sur FollowsMatch'}:error);return}
  S.accts=data;S.acct=data[0];go('waitverif');
