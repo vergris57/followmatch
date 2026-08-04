@@ -767,7 +767,7 @@ function vSettings(){
      <p class="sub mt8">Connecté en ${esc(S.session?.user?.email||'')}</p>
      <button class="btn ghost small mt8" onclick="doLogout()">Se déconnecter</button>
    </div>
-   <p class="sub mt16" style="font-size:12px">Suppression du compte & données (RGPD) : écris à support@followmatch.app — traitée sous 72h.</p>
+   <p class="sub mt16" style="font-size:12px">Suppression du compte & données (RGPD) : écris à support@followsmatch.com — traitée sous 72h.</p>
  </div>`;
 }
 async function changeTarget(k){
