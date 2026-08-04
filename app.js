@@ -104,7 +104,7 @@ function notifSettingsCard(){
 /* ---------- routing ---------- */
 function go(v,arg){
  S.view=v;S.curMatch=arg||null;
- const views={landing:vLanding,onboarding:vOnboarding,waitverif:vWait,swipe:vSwipe,matches:vMatches,detail:vDetail,profile:vProfile,settings:vSettings,admin:vAdmin,resetpw:vResetPw};
+ const views={landing:vLanding,onboarding:vOnboarding,waitverif:vWait,swipe:vSwipe,matches:vMatches,detail:vDetail,profile:vProfile,settings:vSettings,admin:vAdmin,resetpw:vResetPw,leaderboard:vLeaderboard};
  $('screen').innerHTML=(views[v]||vLanding)();
  $('screen').scrollTop=0;
  const main=['swipe','matches','profile'].includes(v);
@@ -115,6 +115,7 @@ function go(v,arg){
  if(v==='matches')refreshMatches().then(()=>{$('screen').innerHTML=vMatches();updateBadge()});
  if(v==='profile')refreshProfile().then(()=>{if(S.view==='profile')$('screen').innerHTML=vProfile()});
  if(v==='admin')refreshAdmin().then(()=>{if(S.view==='admin')$('screen').innerHTML=vAdmin()});
+ if(v==='leaderboard')loadLeaderboard().then(()=>{if(S.view==='leaderboard')$('screen').innerHTML=vLeaderboard()});
 }
 function updateBadge(){
  const n=S.matches.filter(m=>needsMe(m)).length;
@@ -153,6 +154,7 @@ async function refreshProfile(){
  try{const{data}=await sb.from('trust_events').select('*').order('created_at',{ascending:false}).limit(15);
   S.events=data||[];
   const{data:p}=await sb.from('profiles').select('*').eq('id',S.me.id).single();if(p)S.me=p;
+  const{data:rs}=await sb.rpc('fn_referral_stats');S.ref=(rs&&rs[0])?rs[0]:S.ref;
  }catch(e){err(e)}
 }
 async function refreshAdmin(){
@@ -165,6 +167,7 @@ async function refreshAdmin(){
 
 /* ---------- auth ---------- */
 async function boot(){
+ S._ref=new URLSearchParams(location.search).get('ref')||null;
  if(!CONFIGURED){go('landing');return}
  if(location.hash.includes('type=recovery'))S._recovery=true;
  const{data:{session}}=await sb.auth.getSession();
@@ -187,6 +190,7 @@ async function route(){
  if(!S.me.target_platform){S.ob=3;S._target=undefined;go('onboarding');return}   // pas encore d'objectif choisi
  await refreshMatches();
  ensurePushSubscribed();
+ applyReferral();
  go('swipe');
 }
 async function doSignup(){
@@ -322,7 +326,7 @@ async function obFinish(){
  if(error){err(error);return}
  S.me.target_platform=S._target;S.me.niche=S._niche||null;S.me.bio=$('f-bio').value;
  toast('Profil créé — objectif : '+pfLabel(S._target)+' 🎉');
- await refreshMatches();go('swipe');
+ await refreshMatches();applyReferral();go('swipe');
 }
 function vWait(){
  const cards=(S.accts||[]).map(a=>{
@@ -363,6 +367,7 @@ function vSwipe(){
        <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(goal))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
          <span class="pill" style="background:var(--panel2)">${esc(p.niche||'Créateur')}</span>
+         <span class="pill" style="background:var(--panel2)">${fmtFollowers(p.target_follower_count)} ${pfFollow(goal)}</span>
          ${lvBadge(p.trust_score)}
        </div>
        <p class="sub mt8">${esc(p.bio)}</p>
@@ -374,14 +379,14 @@ function vSwipe(){
    </div>`;
    }).reverse().join('');
  return `<div class="wrap">
-   <div class="row"><span class="logo">FollowsMatch</span><div class="spacer"></div>${admin}<span class="pill" style="background:${GOAL_BG}">🎯 Objectif : ${esc(pfLabel(myT))}</span></div>
-   ${notifBanner()}
+   <div class="row"><span class="logo">FollowsMatch</span><div class="spacer"></div><button class="btn ghost small" onclick="go('leaderboard')">🏆</button>${admin}<span class="pill" style="background:${GOAL_BG}">🎯 Objectif : ${esc(pfLabel(myT))}</span></div>
+   ${notifBanner()}${goalBar()}
    <div class="deck">${cards}</div>
    ${d.length?`<div class="actions">
      <button class="act" onclick="swipe(false)">✖️</button>
      <button class="act like" onclick="swipe(true)">❤️</button>
    </div>
-   <div class="counter">Likes restants aujourd'hui : <b>${S.likesLeft}/20</b> · Les profils fiables apparaissent en premier</div>`:''}
+   <div class="counter">Likes restants aujourd'hui : <b>${S.likesLeft}/20</b> · Les créateurs de taille proche apparaissent en premier</div>`:''}
  </div>`;
 }
 async function swipe(like){
@@ -534,6 +539,66 @@ async function reportUnfollow(mid){
   await refreshMatches();await refreshProfile();go('detail',mid);
  }catch(e){err(e)}
 }
+/* ---------- parrainage ---------- */
+function inviteUrl(){return location.origin+location.pathname+'?ref='+((S.ref&&S.ref.my_code)||'');}
+function applyReferral(){ if(S._ref){const c=S._ref;S._ref=null;sb.rpc('fn_apply_referral',{p_code:c}).catch(()=>{});} }
+async function shareInvite(){
+ const url=inviteUrl();
+ const gained=(S.matches||[]).filter(m=>m.status==='completed').length;
+ const text='J\'ai gagné '+gained+' abonnés sur FollowsMatch 🚀 Rejoins-moi : un follow contre un follow, vérifié.';
+ try{ if(navigator.share){ await navigator.share({title:'FollowsMatch',text,url}); return; } }catch(e){ return; }
+ copyInvite();
+}
+async function copyInvite(){
+ try{ await navigator.clipboard.writeText(inviteUrl()); toast('🔗 Lien copié — partage-le où tu veux !'); }
+ catch(e){ toast('Ton lien : '+inviteUrl()); }
+}
+/* ---------- fidélisation : classement, badges, objectif du jour ---------- */
+function fmtFollowers(n){n=+n||0;return n>=1000?(n/1000).toFixed(n>=10000?0:1).replace('.0','')+'k':''+n;}
+async function loadLeaderboard(){
+ try{const{data,error}=await sb.rpc('fn_leaderboard',{p_limit:15});if(error)throw error;S.board=data||[];}catch(e){err(e)}
+}
+function myBadges(){
+ const done=(S.matches||[]).filter(m=>m.status==='completed').length;
+ const sc=S.me?S.me.trust_score:50;const inv=S.ref?S.ref.invited:0;const b=[];
+ if(done>=1)b.push('🥇 Premier échange');
+ if(done>=10)b.push('🔥 10 échanges');
+ if(sc>=60)b.push('🛡 Fiable');
+ if(sc>=80)b.push('👑 Élite');
+ if(inv>=1)b.push('🎁 Parrain');
+ return b;
+}
+function dailyGoal(){
+ const used=20-(S.likesLeft==null?20:S.likesLeft);const target=3;
+ return {n:Math.min(used,target),target,done:used>=target};
+}
+function goalBar(){
+ const g=dailyGoal();
+ return `<div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+   <span style="font-size:20px">${g.done?'✅':'🎯'}</span>
+   <div style="flex:1"><b style="font-size:14px">Objectif du jour</b>
+     <p class="sub" style="font-size:12px">${g.done?'Bravo, objectif atteint !':"Propose 3 échanges aujourd'hui"} · ${g.n}/${g.target}</p>
+     <div style="height:6px;background:var(--panel2);border-radius:99px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.round(g.n/g.target*100)}%;background:${GOAL_BG}"></div></div>
+   </div></div>`;
+}
+function vLeaderboard(){
+ const rows=(S.board||[]).map((r,i)=>{
+   const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'<span class="sub">'+(i+1)+'</span>';
+   const meRow=S.me&&r.display_name===S.me.display_name;
+   return `<div class="mitem"${meRow?' style="border:1px solid var(--violet)"':''}>
+     <div style="width:26px;text-align:center;font-size:17px">${medal}</div>
+     <div class="avatar">${initials(r.display_name)}</div>
+     <div><b>${esc(r.display_name)}</b> ${lvBadge(r.trust_score)}</div>
+     <div class="spacer"></div><div style="text-align:right"><b>${r.gains}</b><div class="sub" style="font-size:11px">échanges (7j)</div></div>
+   </div>`;
+ }).join('');
+ return `<div class="wrap">
+   <button class="btn ghost small" onclick="go('swipe')">← Retour</button>
+   <div class="center mt8"><div class="big">🏆</div><h1 style="font-size:22px" class="mt8">Classement de la semaine</h1>
+   <p class="sub mt8">Les créateurs qui ont complété le plus d'échanges ces 7 derniers jours.</p></div>
+   <div class="mt16">${rows||"<p class='sub center mt16'>Personne n'a encore complété d'échange cette semaine — sois le premier ! 🚀</p>"}</div>
+ </div>`;
+}
 
 /* ---------- profil ---------- */
 function gauge(sc){
@@ -547,7 +612,7 @@ function gauge(sc){
    <text x="100" y="108" text-anchor="middle" fill="#9494ab" font-size="12">score de confiance</text>
  </svg>`;
 }
-function evLabel(t){return {match_completed:'Match complété',fast_bonus:'Bonus rapidité (<24h)',match_expired_fault:'Match expiré (ta faute)',unfollow_confirmed:'Désabonnement confirmé',unfollow_reported:'Désabonnement signalé',report_abuse:'Signalement abusif',signup:'Inscription'}[t]||t}
+function evLabel(t){return {match_completed:'Match complété',fast_bonus:'Bonus rapidité (<24h)',match_expired_fault:'Match expiré (ta faute)',unfollow_confirmed:'Désabonnement confirmé',unfollow_reported:'Désabonnement signalé',report_abuse:'Signalement abusif',signup:'Inscription',referral_bonus:'Parrainage 🎁'}[t]||t}
 function vProfile(){
  const u=S.me,[lv,lc]=level(u.trust_score);
  const done=S.matches.filter(m=>m.status==='completed').length;
@@ -555,6 +620,7 @@ function vProfile(){
  const rate=tot?Math.round(done/tot*100):100;
  return `<div class="wrap">
    <div class="row"><h1 style="font-size:22px">Ton profil</h1><div class="spacer"></div>
+     <button class="btn ghost small" onclick="go('leaderboard')">🏆</button>
      ${u.is_admin?'<button class="btn ghost small" onclick="go(\'admin\')">🛠</button>':''}
      <button class="btn ghost small" onclick="go('settings')">⚙️</button></div>
    <div class="center mt16">
@@ -566,6 +632,7 @@ function vProfile(){
    </div>
    ${gauge(u.trust_score)}
    <div class="center"><span class="pill ${lc}" style="font-size:14px">🛡 Niveau ${lv}</span></div>
+   ${myBadges().length?`<div class="row" style="gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px">${myBadges().map(b=>`<span class="pill" style="background:var(--panel2);font-size:12px">${b}</span>`).join('')}</div>`:''}
    <div class="stats mt24">
      <div class="stat"><b>${done}</b><span>matchs complétés</span></div>
      <div class="stat"><b>+${done}</b><span>abonnés gagnés via l'app</span></div>
@@ -575,6 +642,13 @@ function vProfile(){
    <div class="card mt16"><b>Historique du score</b><div class="mt8">
      ${S.events.length?S.events.map(e=>`<div class="ev"><span>${esc(evLabel(e.event_type))}</span><span class="${e.points_delta>=0?'delta-p':'delta-n'}">${e.points_delta>=0?'+':''}${e.points_delta}</span></div>`).join(''):'<p class="sub">Ton premier match complété apparaîtra ici (+10).</p>'}
    </div></div>
+   <div class="card mt16"><b>🎁 Invite des amis</b>
+     <p class="sub mt8">Quand un ami s'inscrit avec ton lien, vous gagnez <b>+5 points de confiance</b> chacun.</p>
+     <div class="code" style="font-size:12px;word-break:break-all;margin-top:8px">${inviteUrl()}</div>
+     <div class="row mt8" style="gap:8px"><button class="btn small" onclick="shareInvite()">Partager 📲</button>
+       <button class="btn ghost small" onclick="copyInvite()">Copier le lien</button></div>
+     ${S.ref?`<p class="sub mt8">${S.ref.invited||0} ami(s) parrainé(s) · +${S.ref.points||0} points gagnés</p>`:''}
+   </div>
    <p class="sub mt16" style="font-size:12.5px">💡 Tu grandis sur ton objectif ; en échange tu suis tes partenaires sur le leur. Plus ton score est haut, plus tu apparais tôt dans les piles.</p>
  </div>`;
 }
