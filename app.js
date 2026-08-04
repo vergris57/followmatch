@@ -370,6 +370,7 @@ function vSwipe(){
      ${exchBox(p.display_name,goal,myT)}
      <div class="spacer"></div>
      <a class="sub center mt8" style="text-decoration:none;display:block" href="${pfUrl(goal,p.target_username)}" target="_blank" rel="noopener">Voir son ${esc(pfLabel(goal))} : @${esc(p.target_username||'')} ↗</a>
+     <button onclick="event.stopPropagation();blockUser('${p.user_id}')" style="background:none;border:none;color:var(--muted);font-size:11.5px;margin:10px auto 0;display:block;cursor:pointer;opacity:.65">🚫 Bloquer / signaler</button>
    </div>`;
    }).reverse().join('');
  return `<div class="wrap">
@@ -501,6 +502,7 @@ function vDetail(){
    ${exchBox(o.display_name,mi.iFollowNet,mi.theyFollowMeNet)}
    <div class="card mt16">${steps.map(s=>`<div class="step ${s.done?'done':''} ${s.cur?'cur':''}"><div class="dot">${s.done?'✓':'●'}</div><div><h4>${s.t}</h4><p>${s.p}</p></div></div>`).join('')}</div>
    <div class="mt16">${cta}</div>
+   ${m.status==='completed'?`<button class="btn ghost mt8" onclick="reportUnfollow('${m.id}')">Il ne me suit plus 🚩</button>`:''}
    ${['completed','expired','reported'].includes(m.status)?'':`<button class="btn ghost mt8" onclick="reportPb('${m.id}')">Signaler un problème</button>`}
  </div>`;
 }
@@ -518,6 +520,20 @@ async function reportPb(mid){
   toast('🚩 Signalement envoyé — l\'équipe vérifie.');await refreshMatches();go('matches');
  }catch(e){err(e)}
 }
+async function blockUser(id){
+ try{const{error}=await sb.rpc('fn_block',{p_target:id});if(error)throw error;
+  S.deck=(S.deck||[]).filter(p=>p.user_id!==id);
+  toast('🚫 Profil bloqué — tu ne le verras plus.');
+  if(S.view==='swipe')$('screen').innerHTML=vSwipe();
+  if((S.deck||[]).length<4)refreshDeck();
+ }catch(e){err(e)}
+}
+async function reportUnfollow(mid){
+ try{const{error}=await sb.rpc('fn_report_unfollow',{p_match:mid});if(error)throw error;
+  toast('🚩 Désabonnement signalé — son score de confiance a baissé.');
+  await refreshMatches();await refreshProfile();go('detail',mid);
+ }catch(e){err(e)}
+}
 
 /* ---------- profil ---------- */
 function gauge(sc){
@@ -531,7 +547,7 @@ function gauge(sc){
    <text x="100" y="108" text-anchor="middle" fill="#9494ab" font-size="12">score de confiance</text>
  </svg>`;
 }
-function evLabel(t){return {match_completed:'Match complété',fast_bonus:'Bonus rapidité (<24h)',match_expired_fault:'Match expiré (ta faute)',unfollow_confirmed:'Désabonnement confirmé',report_abuse:'Signalement abusif',signup:'Inscription'}[t]||t}
+function evLabel(t){return {match_completed:'Match complété',fast_bonus:'Bonus rapidité (<24h)',match_expired_fault:'Match expiré (ta faute)',unfollow_confirmed:'Désabonnement confirmé',unfollow_reported:'Désabonnement signalé',report_abuse:'Signalement abusif',signup:'Inscription'}[t]||t}
 function vProfile(){
  const u=S.me,[lv,lc]=level(u.trust_score);
  const done=S.matches.filter(m=>m.status==='completed').length;
