@@ -69,7 +69,7 @@ let _installPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_installPrompt=e;if(S.view==='installgate')$('screen').innerHTML=vInstallGate()});
 window.addEventListener('appinstalled',()=>{_installPrompt=null;toast('✅ App installée — bienvenue !');setTimeout(()=>route(),400)});
 async function doInstall(){ if(_installPrompt){ _installPrompt.prompt(); try{await _installPrompt.userChoice}catch(e){} _installPrompt=null; if(!isInstalled()&&S.view==='installgate')$('screen').innerHTML=vInstallGate(); } else { toast('Suis les étapes ci-dessous pour installer 🙂'); } }
-function GATED(v){return ['swipe','matches','profile','detail','settings','admin','leaderboard'].includes(v)}
+function GATED(v){return ['swipe','matches','profile','detail','settings','admin','leaderboard','edit'].includes(v)}
 function vInstallGate(){
  const ios=isIOS();
  const btn=(!ios&&_installPrompt)?`<button class="btn mt16" onclick="doInstall()">📲 Installer l'app maintenant</button>`:'';
@@ -103,7 +103,7 @@ function vInstallGate(){
 /* avatars colorés (déterministes selon le pseudo) */
 function nameHue(n){let h=7;const s=(n||'?');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h}
 function avatarStyle(n){const h=nameHue(n);return `background:linear-gradient(135deg,hsl(${h},68%,58%),hsl(${(h+42)%360},68%,46%))`}
-function av(n,px,fs){px=px||44;fs=fs||Math.round(px*0.42);return `<div class="avatar" style="${avatarStyle(n)};width:${px}px;height:${px}px;font-size:${fs}px">${initials(n)}</div>`}
+function av(n,px,fs,url){px=px||44;fs=fs||Math.round(px*0.42);if(url)return `<div class="avatar" style="width:${px}px;height:${px}px;background-image:url('${esc(url)}');background-size:cover;background-position:center"></div>`;return `<div class="avatar" style="${avatarStyle(n)};width:${px}px;height:${px}px;font-size:${fs}px">${initials(n)}</div>`}
 /* gains (abonnés gagnés) — calculé côté app à partir des matchs complétés */
 function myGains(){const c=(S.matches||[]).filter(m=>m.status==='completed');const week=c.filter(m=>m.completed_at&&(Date.now()-new Date(m.completed_at))<7*864e5).length;return {total:c.length,week}}
 function gainsCard(){const g=myGains();return `<div class="card mt16" style="text-align:center;background:linear-gradient(135deg,rgba(139,92,246,.16),rgba(236,72,153,.16));border-color:rgba(139,92,246,.5)">
@@ -134,7 +134,7 @@ function previewMyProfile(){
  box.innerHTML=`<div class="box" style="max-width:340px">
    <p class="sub" style="font-size:12px">Voici comment les autres te voient 👇</p>
    <div class="pcard" style="position:relative;margin:10px 0 0;transform:none">
-     <div class="center">${av(u.display_name,92,34)}
+     <div class="center">${av(u.display_name,92,34,u.avatar_url)}
        <h2>${esc(u.display_name)}</h2>
        <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(myT))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
@@ -198,7 +198,7 @@ function notifSettingsCard(){
 function go(v,arg){
  if(GATED(v)&&!isInstalled()){S.view='installgate';S.curMatch=arg||null;$('screen').innerHTML=vInstallGate();$('screen').scrollTop=0;$('nav').classList.add('hidden');return}
  S.view=v;S.curMatch=arg||null;
- const views={landing:vLanding,onboarding:vOnboarding,waitverif:vWait,swipe:vSwipe,matches:vMatches,detail:vDetail,profile:vProfile,settings:vSettings,admin:vAdmin,resetpw:vResetPw,leaderboard:vLeaderboard};
+ const views={landing:vLanding,onboarding:vOnboarding,waitverif:vWait,swipe:vSwipe,matches:vMatches,detail:vDetail,profile:vProfile,settings:vSettings,admin:vAdmin,resetpw:vResetPw,leaderboard:vLeaderboard,edit:vEdit};
  $('screen').innerHTML=(views[v]||vLanding)();
  $('screen').scrollTop=0;
  const main=['swipe','matches','profile'].includes(v);
@@ -312,6 +312,10 @@ async function doForgot(){
  if(error){err(error);return}
  toast('📬 E-mail envoyé à '+esc(email)+' — clique le lien reçu pour choisir un nouveau mot de passe. (Pense au dossier spam.)');
 }
+async function loginGoogle(){
+ try{const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)throw error;}
+ catch(e){err(e)}
+}
 function vResetPw(){
  return `<div class="wrap" style="padding-top:40px">
    <div class="center"><div class="big">🔑</div><h2 class="mt8">Choisis un nouveau mot de passe</h2>
@@ -353,6 +357,8 @@ function vLanding(){
        <span class="chip ${mode==='signup'?'on':''}" onclick="S._authMode='signup';go('landing')">Créer un compte</span>
        <span class="chip ${mode==='login'?'on':''}" onclick="S._authMode='login';go('landing')">Se connecter</span>
      </div>
+     <button class="btn ghost" ${CONFIGURED?'':'disabled'} onclick="loginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuer avec Google</button>
+     <div class="center sub" style="margin:12px 0;font-size:12px;opacity:.7">— ou avec ton e-mail —</div>
      <div class="field"><label>E-mail</label><input id="a-email" type="email" placeholder="toi@email.com"></div>
      <div class="field"><label>Mot de passe</label><input id="a-pw" type="password" placeholder="8 caractères minimum"></div>
      ${mode==='login'?'<p class="sub" style="font-size:12.5px;text-align:right;margin-top:-6px;margin-bottom:10px"><span class="link" onclick="doForgot()">Mot de passe oublié ?</span></p>':''}
@@ -457,7 +463,7 @@ function vSwipe(){
    const goal=p.target_platform;
    return `
    <div class="pcard ${i===1?'back1':i===2?'back2':''}" id="card-${p.user_id}" style="z-index:${9-i}">
-     <div class="center">${av(p.display_name,92,34)}
+     <div class="center">${av(p.display_name,92,34,p.avatar_url)}
        <h2>${esc(p.display_name)}</h2>
        <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(goal))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
@@ -718,9 +724,10 @@ function vProfile(){
      <button class="btn ghost small" onclick="previewMyProfile()" title="Aperçu de mon profil">👁</button>
      <button class="btn ghost small" onclick="go('leaderboard')">🏆</button>
      ${u.is_admin?'<button class="btn ghost small" onclick="go(\'admin\')">🛠</button>':''}
+     <button class="btn ghost small" onclick="go('edit')" title="Modifier mon profil">✏️</button>
      <button class="btn ghost small" onclick="go('settings')">⚙️</button></div>
    <div class="center mt16">
-     <div class="avatar" style="${avatarStyle(u.display_name)};width:84px;height:84px;font-size:32px;margin:0 auto">${initials(u.display_name)}</div>
+     ${av(u.display_name,84,32,u.avatar_url)}
      <h2 class="mt8">${esc(u.display_name)}</h2>
      <p class="sub">${esc(u.niche||'Créateur')}</p>
      <div class="mt8"><span class="pill" style="background:${GOAL_BG};font-size:13px">🎯 Objectif : ${esc(pfLabel(u.target_platform))}</span></div>
@@ -774,6 +781,119 @@ async function changeTarget(k){
  if(S.me.target_platform===k)return;
  try{const{error}=await sb.rpc('fn_set_target',{p_platform:k});if(error)throw error;
   S.me.target_platform=k;toast('🎯 Nouvel objectif : '+pfLabel(k)+' — ta pile de swipe est mise à jour.');go('settings');refreshDeck();
+ }catch(e){err(e)}
+}
+
+/* ---------- édition du profil ---------- */
+async function uploadAvatar(file){
+ if(!file)return;
+ try{
+  toast('Envoi de la photo…');
+  const blob=await compressImg(file,400);
+  const path=S.me.id+'/avatar.jpg';
+  const{error}=await sb.storage.from('avatars').upload(path,blob,{upsert:true,contentType:'image/jpeg'});
+  if(error)throw error;
+  const url=sb.storage.from('avatars').getPublicUrl(path).data.publicUrl+'?t='+Date.now();
+  const{error:pe}=await sb.from('profiles').update({avatar_url:url}).eq('id',S.me.id);if(pe)throw pe;
+  S.me.avatar_url=url;toast('Photo mise à jour ✅');
+  if(S.view==='edit')$('screen').innerHTML=vEdit();
+ }catch(e){err(e)}
+}
+function compressImg(file,size){return new Promise(function(res,rej){var img=new Image();img.onload=function(){var c=document.createElement('canvas');var m=Math.min(img.width,img.height);c.width=c.height=size;var x=c.getContext('2d');x.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,size,size);c.toBlob(function(b){b?res(b):rej(new Error('image'));},'image/jpeg',0.85);};img.onerror=rej;img.src=URL.createObjectURL(file);});}
+async function removeAvatar(){
+ try{await sb.storage.from('avatars').remove([S.me.id+'/avatar.jpg']);}catch(e){}
+ const{error}=await sb.from('profiles').update({avatar_url:null}).eq('id',S.me.id);
+ if(error){err(error);return}
+ S.me.avatar_url=null;toast('Photo retirée.');if(S.view==='edit')$('screen').innerHTML=vEdit();
+}
+async function reloadAccts(){try{const{data}=await sb.from('social_accounts').select('*').eq('user_id',S.me.id).order('created_at');S.accts=data||[];}catch(e){}}
+function updEditPreview(id,plat){var el=$('eprev-'+id);if(!el)return;var e=$('e-user-'+id);var c=cleanHandle(e?e.value:'');el.innerHTML=c?('→ '+esc(pfUrl(plat,c).replace(/^https?:\/\//,''))):'<span style="color:#f87171">pseudo vide</span>';}
+function editNetRow(a){
+ const v=a.verification_status==='verified';
+ return `<div class="card mt8" style="background:var(--panel2)">
+   <div class="row"><b>${esc(pfLabel(a.platform))}</b><div class="spacer"></div>
+     <span class="sub" style="font-size:12px">${v?'vérifié ✔':'à vérifier ⏳'}${a.platform===S.me.target_platform?' · 🎯 objectif':''}</span></div>
+   <div class="field mt8"><label>Pseudo ${esc(pfLabel(a.platform))}</label><input id="e-user-${a.id}" value="${esc(a.username)}" oninput="updEditPreview('${a.id}','${a.platform}')"></div>
+   <div id="eprev-${a.id}" class="sub" style="font-size:12px;margin-top:2px">→ ${esc(pfUrl(a.platform,a.username).replace(/^https?:\/\//,''))}</div>
+   <div class="field mt8"><label>${esc(pfFollow(a.platform))} (environ)</label><input id="e-fol-${a.id}" type="number" min="0" value="${a.follower_count||0}"></div>
+   <button class="btn ghost small mt8" id="rm-${a.id}" onclick="removeNet('${a.id}')" style="color:#f87171">Retirer ce réseau</button>
+ </div>`;
+}
+function vEdit(){
+ const me=S.me,accts=S.accts||[];
+ const connected=accts.map(a=>a.platform);
+ const avail=PLATFORM_LIST.filter(p=>!connected.includes(p[0]));
+ return `<div class="wrap">
+   <button class="btn ghost small" onclick="go('profile')">← Profil</button>
+   <h2 class="mt16">Modifier mon profil</h2>
+   <div class="card mt16"><b>Photo de profil</b>
+     <div class="center mt8">${av(me.display_name,88,34,me.avatar_url)}</div>
+     <div class="center mt8" style="display:flex;gap:8px;justify-content:center">
+       <button class="btn ghost small" onclick="$('avatar-file').click()">📷 ${me.avatar_url?'Changer':'Ajouter'} la photo</button>
+       ${me.avatar_url?`<button class="btn ghost small" onclick="removeAvatar()" style="color:#f87171">Retirer</button>`:''}
+     </div>
+     <input id="avatar-file" type="file" accept="image/*" style="display:none" onchange="uploadAvatar(this.files[0])">
+     <p class="sub mt8" style="font-size:12px">Une photo réelle inspire plus confiance et fait accepter plus d'échanges.</p>
+   </div>
+   <div class="card mt16"><b>Mes infos</b>
+     <div class="field mt8"><label>Nom affiché</label><input id="e-name" maxlength="40" value="${esc(me.display_name||'')}"></div>
+     <div class="field mt8"><label>Bio courte</label><input id="e-bio" maxlength="140" placeholder="Ce que tu crées, en une phrase" value="${esc(me.bio||'')}"></div>
+   </div>
+   <div class="card mt16"><b>Mes réseaux</b>
+     <p class="sub mt4" style="font-size:12px">💡 Changer un pseudo remet le réseau en « à vérifier » ⏳ (anti-triche).</p>
+     ${accts.map(editNetRow).join('')||'<p class="sub mt8">Aucun réseau connecté.</p>'}
+     ${avail.length?`<div class="mt16">
+       <button class="btn ghost small" id="add-net-btn" onclick="toggleAddNet()">+ Ajouter un réseau</button>
+       <div id="add-net-form" class="hidden mt8">
+         <div class="field"><label>Réseau</label><select id="an-plat" style="width:100%;padding:11px 12px;border-radius:12px;background:var(--panel2);color:#f2f2f8;border:1px solid #2a2a3a;font-size:15px">${avail.map(p=>`<option value="${p[0]}">${esc(p[1])}</option>`).join('')}</select></div>
+         <div class="field mt8"><input id="an-user" placeholder="ton pseudo (ou colle ton lien)"></div>
+         <div class="field mt8"><input id="an-fol" type="number" min="0" placeholder="tes abonnés (environ)"></div>
+         <button class="btn small" onclick="addNet()">Ajouter ce réseau</button>
+       </div></div>`:'<p class="sub mt8" style="font-size:12px">Tous les réseaux disponibles sont déjà connectés 🎉</p>'}
+   </div>
+   <button class="btn mt16" onclick="saveEdit()">Enregistrer ✅</button>
+   <p class="sub mt8" style="font-size:12px">Ton réseau-objectif se change dans les Réglages ⚙️.</p>
+ </div>`;
+}
+function toggleAddNet(){var f=$('add-net-form');if(f)f.classList.toggle('hidden');}
+async function addNet(){
+ const plat=$('an-plat').value,u=cleanHandle($('an-user').value),fol=+($('an-fol').value||0);
+ if(!u){toast('Renseigne ton pseudo 🙂');return}
+ const{error}=await sb.from('social_accounts').insert({user_id:S.me.id,platform:plat,username:u,follower_count:fol});
+ if(error){err(error.code==='23505'?{message:'Ce compte est déjà utilisé sur FollowsMatch'}:error);return}
+ toast('Réseau ajouté — à vérifier ⏳');
+ await reloadAccts();if(S.view==='edit')$('screen').innerHTML=vEdit();
+}
+async function removeNet(id){
+ const a=(S.accts||[]).find(x=>x.id===id);if(!a)return;
+ if((S.accts||[]).length<=1){toast('Tu dois garder au moins un réseau 🙂');return}
+ const btn=$('rm-'+id);
+ if(btn&&btn.dataset.confirm!=='1'){btn.dataset.confirm='1';btn.textContent='Confirmer le retrait ?';setTimeout(()=>{if(btn){btn.dataset.confirm='0';btn.textContent='Retirer ce réseau';}},4000);return;}
+ if(a.platform===S.me.target_platform){
+  const other=(S.accts||[]).find(x=>x.id!==id&&x.verification_status==='verified');
+  if(other){const{error:te}=await sb.rpc('fn_set_target',{p_platform:other.platform});if(!te)S.me.target_platform=other.platform;}
+  else{toast('C\'est ton réseau-objectif et ton seul réseau vérifié — change d\'objectif d\'abord (Réglages).');if(btn){btn.dataset.confirm='0';btn.textContent='Retirer ce réseau';}return;}
+ }
+ const{error}=await sb.from('social_accounts').delete().eq('id',id);
+ if(error){err(error);return}
+ toast('Réseau retiré.');
+ await reloadAccts();if(S.view==='edit')$('screen').innerHTML=vEdit();
+}
+async function saveEdit(){
+ const name=$('e-name').value.trim();if(!name){toast('Le nom ne peut pas être vide 🙂');return}
+ const bio=$('e-bio').value;
+ try{
+  const{error:pe}=await sb.from('profiles').update({display_name:name,bio:bio}).eq('id',S.me.id);if(pe)throw pe;
+  S.me.display_name=name;S.me.bio=bio;
+  let reverif=0,errs=0;
+  for(const a of (S.accts||[])){
+   const fe=$('e-fol-'+a.id),ue=$('e-user-'+a.id);
+   if(fe){const fol=+(fe.value||0);if(fol!==a.follower_count){const{error}=await sb.from('social_accounts').update({follower_count:fol}).eq('id',a.id);if(!error)a.follower_count=fol;}}
+   if(ue){const nu=cleanHandle(ue.value);if(nu&&nu!==a.username){const{error}=await sb.rpc('fn_set_username',{p_account:a.id,p_username:nu});if(error){errs++;err(error);}else{a.username=nu;a.verification_status='pending';reverif++;}}}
+  }
+  toast('Profil mis à jour ✅'+(reverif?` · ${reverif} réseau(x) à re-vérifier ⏳`:''));
+  await reloadAccts();
+  if(errs){if(S.view==='edit')$('screen').innerHTML=vEdit();}else{go('profile');}
  }catch(e){err(e)}
 }
 
