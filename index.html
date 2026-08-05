@@ -3,8 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FollowsMatch — Des followers réels, en follow mutuel vérifié</title>
-<meta name="description" content="Swipe. Match. Grandis. FollowsMatch met en relation des créateurs qui se suivent mutuellement, avec validation en 4 étapes et score de confiance.">
+<title>Gagner des abonnés gratuitement, sans bot — FollowsMatch</title>
+<meta name="description" content="L'échange croisé entre créateurs : il te suit sur TikTok, tu le suis sur Instagram. Follow mutuel vérifié en 4 étapes, sans bot. 100 % gratuit.">
+<link rel="canonical" href="https://followsmatch.com/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+
+<!-- Aperçu des liens partagés (Discord, WhatsApp, Facebook, Messenger, iMessage, LinkedIn…) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="FollowsMatch">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:url" content="https://followsmatch.com/">
+<meta property="og:title" content="Gagne des abonnés là où tu en as besoin">
+<meta property="og:description" content="L'échange croisé entre créateurs : il te suit sur TikTok, tu le suis sur Instagram. Vérifié en 4 étapes, zéro bot, 100 % gratuit.">
+<meta property="og:image" content="https://followsmatch.com/og-image.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Deux créateurs s'abonnent l'un à l'autre en croisé : Instagram dans un sens, TikTok dans l'autre.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Gagne des abonnés là où tu en as besoin">
+<meta name="twitter:description" content="L'échange croisé entre créateurs : il te suit sur TikTok, tu le suis sur Instagram. Vérifié en 4 étapes, zéro bot, 100 % gratuit.">
+<meta name="twitter:image" content="https://followsmatch.com/og-image.png">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0b0714">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
@@ -248,7 +267,88 @@
     .viewin{animation:none}
     *{transition-duration:.01ms!important}
   }
+
+  /* contenu de secours : visible sans JavaScript, remplacé par l'app sinon */
+  #seo{padding-top:34px}
+  #seo h1{font-size:26px;margin-bottom:12px}
+  #seo h2{font-size:18px;margin:26px 0 8px}
+  #seo h3{font-family:var(--fd);font-size:15px;font-weight:700;margin:18px 0 4px}
+  #seo p{color:var(--muted);font-size:14px;line-height:1.6}
+  #seo ol{margin:10px 0 0 19px;color:var(--muted);font-size:14px;line-height:1.6}
+  #seo ol li{margin-bottom:9px}
+  #seo ol b,#seo p b{color:var(--txt)}
 </style>
+<noscript><style>#splash{display:none}#nav{display:none}</style></noscript>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://followsmatch.com/#site",
+      "url": "https://followsmatch.com/",
+      "name": "FollowsMatch",
+      "inLanguage": "fr-FR"
+    },
+    {
+      "@type": "WebApplication",
+      "@id": "https://followsmatch.com/#app",
+      "name": "FollowsMatch",
+      "url": "https://followsmatch.com/",
+      "applicationCategory": "SocialNetworkingApplication",
+      "operatingSystem": "Android, iOS, Web",
+      "inLanguage": "fr-FR",
+      "isAccessibleForFree": true,
+      "description": "Échange croisé d'abonnés entre créateurs TikTok, Instagram, Snapchat et X : chacun s'abonne sur le réseau où l'autre veut grandir, et l'échange est vérifié en 4 étapes.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "featureList": [
+        "Échange croisé entre réseaux différents",
+        "Follow mutuel vérifié en 4 étapes",
+        "Score de confiance et contrôles de fidélité",
+        "Aucun mot de passe demandé",
+        "100 % gratuit"
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://followsmatch.com/#faq",
+      "inLanguage": "fr-FR",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "FollowsMatch est-il vraiment gratuit ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Oui, 100 % gratuit. Pas d'abonnement, pas de crédits à acheter, pas de carte bancaire." }
+        },
+        {
+          "@type": "Question",
+          "name": "Faut-il donner son mot de passe TikTok ou Instagram ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Jamais. FollowsMatch ne demande aucun mot de passe et ne se connecte pas à tes comptes. Tu indiques simplement tes pseudos, et c'est ton partenaire d'échange qui confirme avoir bien reçu ton abonnement." }
+        },
+        {
+          "@type": "Question",
+          "name": "Comment fonctionne l'échange croisé ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Chaque créateur choisit le réseau sur lequel il veut grandir. Tu t'abonnes à l'autre là où lui veut grandir, il s'abonne à toi là où toi tu veux grandir. Les deux réseaux peuvent être différents." }
+        },
+        {
+          "@type": "Question",
+          "name": "Est-ce que ce sont de vrais abonnés ou des bots ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "De vrais créateurs : rien n'est acheté et aucun compte n'est généré. Le badge « Vérifié » s'obtient au premier échange réellement confirmé par un partenaire." }
+        },
+        {
+          "@type": "Question",
+          "name": "Que se passe-t-il si quelqu'un se désabonne après l'échange ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Des contrôles de fidélité sont effectués après l'échange. Si un abonnement a disparu, le score de confiance du fautif baisse et il devient moins visible pour les autres créateurs." }
+        },
+        {
+          "@type": "Question",
+          "name": "Sur quels réseaux sociaux ça fonctionne ?",
+          "acceptedAnswer": { "@type": "Answer", "text": "TikTok, Instagram, Snapchat et X." }
+        }
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
 <div id="phone">
@@ -264,7 +364,47 @@
     <div class="logo">FollowsMatch</div>
     <p>Swipe · Match · Grandis</p>
   </div>
-  <div id="screen"><div class="wrap center" style="padding-top:80px"><span class="spin"></span></div></div>
+  <div id="screen">
+    <!-- Contenu de secours : lu par les moteurs de recherche et affiché si JavaScript
+         est désactivé. L'application le remplace dès qu'elle est chargée. -->
+    <div class="wrap" id="seo">
+      <h1>Gagne des abonnés là où tu en as besoin</h1>
+      <p>Gagner des abonnés gratuitement, sans bot et sans les acheter&nbsp;: FollowsMatch met en relation des créateurs TikTok, Instagram, Snapchat et X qui veulent grandir sur des réseaux différents. Tu le suis là où il veut grandir, il te suit là où toi tu veux grandir. C'est l'échange croisé, et chaque échange est vérifié. L'inscription prend quelques secondes&nbsp;: aucun code à coller, aucune validation à attendre.</p>
+
+      <h2>Comment ça marche</h2>
+      <ol>
+        <li><b>Choisis ton objectif</b> — le réseau sur lequel tu veux vraiment gagner des abonnés.</li>
+        <li><b>Swipe et match</b> — tu fais défiler les profils des autres créateurs&nbsp;; quand l'intérêt est réciproque, c'est un match.</li>
+        <li><b>Échange croisé</b> — tu t'abonnes sur son réseau, il s'abonne sur le tien.</li>
+        <li><b>Vérification en 4 étapes</b> — l'application contrôle que les deux abonnements sont bien réels, puis attribue un score de confiance.</li>
+      </ol>
+
+      <h2>Pourquoi ce n'est pas un site d'achat d'abonnés</h2>
+      <p>Il n'y a ni bot, ni compte fantôme, ni abonné acheté&nbsp;: en face de toi il y a un vrai créateur qui a exactement le même problème que toi. Celui qui se désabonne en douce voit son score de confiance baisser et sort des piles. C'est ce qui fait tenir l'échange dans la durée.</p>
+
+      <h2>Questions fréquentes</h2>
+
+      <h3>FollowsMatch est-il vraiment gratuit&nbsp;?</h3>
+      <p>Oui, 100&nbsp;% gratuit. Pas d'abonnement, pas de crédits à acheter, pas de carte bancaire.</p>
+
+      <h3>Faut-il donner son mot de passe TikTok ou Instagram&nbsp;?</h3>
+      <p>Jamais. FollowsMatch ne demande aucun mot de passe et ne se connecte pas à tes comptes. Tu indiques simplement tes pseudos, et c'est ton partenaire d'échange qui confirme avoir bien reçu ton abonnement.</p>
+
+      <h3>Est-ce que ce sont de vrais abonnés&nbsp;?</h3>
+      <p>De vrais créateurs&nbsp;: rien n'est acheté et aucun compte n'est généré. Le badge «&nbsp;Vérifié&nbsp;» s'obtient au premier échange réellement confirmé par un partenaire.</p>
+
+      <h3>Que se passe-t-il si quelqu'un se désabonne après l'échange&nbsp;?</h3>
+      <p>Des contrôles de fidélité sont effectués après coup. Si un abonnement a disparu, le score de confiance du fautif baisse et il devient moins visible pour les autres.</p>
+
+      <h3>Sur quels réseaux ça fonctionne&nbsp;?</h3>
+      <p>TikTok, Instagram, Snapchat et X. Tu peux vouloir grandir sur l'un et rendre l'échange sur un autre&nbsp;: c'est justement le principe de l'échange croisé.</p>
+
+      <h3>Faut-il télécharger une application&nbsp;?</h3>
+      <p>Non, rien à télécharger sur un store. FollowsMatch s'installe directement depuis le navigateur, en un geste, sur Android comme sur iPhone.</p>
+
+      <p class="mt16"><a class="link" href="./confidentialite.html">Politique de confidentialité</a></p>
+    </div>
+  </div>
   <div id="nav" class="hidden">
     <button id="nb-swipe" onclick="go('swipe')"><span class="ico"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5.5" width="12.5" height="16" rx="2.8"/><path d="M8.3 3.4 17 2.1c1.2-.2 2.3.6 2.5 1.8l1.9 11"/><path d="M11.3 11.3c-.9.9-.9 2.3 0 3.1l2.15 2 2.15-2c.9-.8.9-2.2 0-3.1-.85-.85-2.2-.85-3.05 0-.4.4-.6.6-.6.6s-.2-.2-.65-.6Z" fill="currentColor" stroke="none"/></svg></span>Swipe</button>
     <button id="nb-matches" onclick="go('matches')"><span class="ico"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 8.5h13"/><path d="M14.2 5l3.6 3.5-3.6 3.5"/><path d="M19.5 15.5h-13"/><path d="M9.8 12l-3.6 3.5 3.6 3.5"/></svg></span>Matchs<span id="mbadge" class="badge hidden"></span></button>

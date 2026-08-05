@@ -1,0 +1,7 @@
+# FollowsMatch — https://followsmatch.com
+# Tout le site est ouvert à l'indexation.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://followsmatch.com/sitemap.xml
