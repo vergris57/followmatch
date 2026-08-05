@@ -1,5 +1,5 @@
 /* FollowsMatch — service worker : mode hors-ligne (coquille de l'app) + notifications push */
-const CACHE = 'fm-shell-v7';
+const CACHE = 'fm-shell-v8';
 const SHELL = ['./', './index.html', './config.js', './supabase.js', './manifest.json',
                './icon-192.png', './icon-512.png'];
 

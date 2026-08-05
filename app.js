@@ -720,7 +720,7 @@ function vProfile(){
  const tot=S.matches.filter(m=>['completed','expired'].includes(m.status)).length;
  const rate=tot?Math.round(done/tot*100):100;
  return `<div class="wrap">
-   <div class="row"><h1 style="font-size:22px">Ton profil</h1><div class="spacer"></div>
+   <div class="row headrow"><h1>Ton profil</h1><div class="spacer"></div>
      <button class="btn ghost small" onclick="previewMyProfile()" title="Aperçu de mon profil">👁</button>
      <button class="btn ghost small" onclick="go('leaderboard')">🏆</button>
      ${u.is_admin?'<button class="btn ghost small" onclick="go(\'admin\')">🛠</button>':''}
