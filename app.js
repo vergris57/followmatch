@@ -337,8 +337,8 @@ async function refreshMatches(){
  S._mLoading=true;
  try{
   const q='id,status,user_a,user_b,user_a_target,user_b_target,expires_at,created_at,completed_at,step1_a_followed_at,step2_b_confirmed_at,step3_b_followed_back_at,step4_a_confirmed_at,expired_fault,'
-   +'a:profiles!matches_user_a_fkey(id,display_name,trust_score,target_platform,social_accounts(username,platform,verification_status)),'
-   +'b:profiles!matches_user_b_fkey(id,display_name,trust_score,target_platform,social_accounts(username,platform,verification_status))';
+   +'a:profiles!matches_user_a_fkey(id,display_name,avatar_url,trust_score,target_platform,social_accounts(username,platform,verification_status)),'
+   +'b:profiles!matches_user_b_fkey(id,display_name,avatar_url,trust_score,target_platform,social_accounts(username,platform,verification_status))';
   const{data,error}=await sb.from('matches').select(q).order('created_at',{ascending:false});if(error)throw error;
   S.matches=data||[];
  }catch(e){err(e)}
@@ -625,7 +625,7 @@ function showMatchModal(p,matchId){
  const myT=S.me.target_platform;
  const box=document.createElement('div');box.id='modal';
  box.innerHTML=`<div class="box">
-   <div class="duo">${av(S.me.display_name,68,26)}${av(p.display_name,68,26)}</div>
+   <div class="duo">${av(S.me.display_name,68,26,S.me.avatar_url)}${av(p.display_name,68,26,p.avatar_url)}</div>
    <h2 class="matchtitle mt8">C'est un match !</h2>
    <p class="sub" style="font-size:13px">Vous allez grandir ensemble ${ic('sparkles',13,'color:#f472b6')}</p>
    ${exchBox(p.display_name,p.target_platform,myT)}
@@ -666,7 +666,7 @@ function skMatches(){
 }
 function vMatches(){
  const item=m=>{const[c,l]=stLabel(m);const o=otherOf(m);const mi=matchInfo(m);return `<div class="mitem" onclick="go('detail','${m.id}')">
-   ${av(o.display_name)}
+   ${av(o.display_name,44,18,o.avatar_url)}
    <div><b>${esc(o.display_name)}</b> <span class="pill" style="background:${GOAL_BG};font-size:10px;padding:2px 8px">${ic('target',10)} ${esc(pfLabel(mi.iFollowNet))}</span><div class="st ${c}">${l}</div></div>
    <div class="spacer"></div>${m.expires_at&&!['completed','expired','reported'].includes(m.status)?`<span class="timer">${ic('clock',11)} ${left(m.expires_at)}</span>`:''}
  </div>`};
@@ -722,7 +722,7 @@ function vDetail(){
  else cta=`<div class="card center"><p class="sub">⏳ Au tour de ${u} — reviens un peu plus tard.${m.expires_at?' <br><span class="timer">'+left(m.expires_at)+'</span>':''}</p></div>`;
  return `<div class="wrap">
    <button class="btn ghost small" onclick="go('matches')" style="display:inline-flex;align-items:center;gap:4px">${ic('back',13)} Matchs</button>
-   <div class="center mt16"><div class="avatar" style="${avatarStyle(o.display_name)};width:80px;height:80px;font-size:30px;margin:0 auto">${initials(o.display_name)}</div>
+   <div class="center mt16">${av(o.display_name,80,30,o.avatar_url)}
      <h2 class="mt8">${u}</h2>
      <div class="mt8"><span class="pill" style="background:${GOAL_BG}">${ic('target',11)} veut grandir sur ${esc(pfLabel(mi.iFollowNet))}</span></div>
      <div class="mt8">${lvBadge(o.trust_score)}</div></div>
@@ -806,10 +806,10 @@ function goalBar(){
 function vLeaderboard(){
  const rows=(S.board||[]).map((r,i)=>{
    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'<span class="sub">'+(i+1)+'</span>';
-   const meRow=S.me&&r.display_name===S.me.display_name;
+   const meRow=S.me&&((r.user_id&&r.user_id===S.me.id)||(r.id&&r.id===S.me.id)||r.display_name===S.me.display_name);
    return `<div class="mitem"${meRow?' style="border:1px solid var(--violet)"':''}>
      <div style="width:26px;text-align:center;font-size:17px">${medal}</div>
-     ${av(r.display_name)}
+     ${av(r.display_name,44,18,r.avatar_url)}
      <div><b>${esc(r.display_name)}</b> ${lvBadge(r.trust_score)}</div>
      <div class="spacer"></div><div style="text-align:right"><b>${r.gains}</b><div class="sub" style="font-size:11px">échanges (7j)</div></div>
    </div>`;
