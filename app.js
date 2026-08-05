@@ -185,7 +185,8 @@ function vEmptyDeck(){
  return `<div class="card center" style="padding:36px 20px">
    ${illo('sprout')}
    <h2 class="mt16">Pas encore de profil à échanger</h2>
-   <p class="sub mt8">FollowsMatch grandit chaque jour. Plus il y a de créateurs sur <b>${esc(pfLabel(myT))}</b>, plus tu auras d'échanges — invite les tiens pour lancer la machine 👇</p>
+   <p class="sub mt8">Un échange n'est possible que si l'autre est présent sur <b>${esc(pfLabel(myT))}</b> (ton objectif) et toi sur le sien.${(S.accts||[]).length<2?` <b style="color:var(--warn)">Tu n'as déclaré qu'un seul réseau</b> — en ajouter d'autres multiplie tes chances.`:''}</p>
+   ${(S.accts||[]).length<2?`<button class="btn ghost mt8" onclick="go('edit')">${ic('pencil',14)} Ajouter un réseau</button>`:''}
    <button class="btn mt16" onclick="shareInvite()">Inviter des amis 🎁 (+5 pts chacun)</button>
    ${notifBtn}
    <button class="btn ghost mt8" onclick="refreshDeck()">Actualiser</button>
@@ -496,15 +497,19 @@ function vOnboarding(){
              <div class="field" style="margin-bottom:0"><input id="net-${k}-f" type="number" min="0" placeholder="Tes ${pfFollow(k)} (environ)" value="${S._nets[k].fol||''}" oninput="S._nets['${k}'].fol=this.value"></div>`:''}
      </div>`;
    }).join('');
+   const nbCoches=Object.keys(S._nets).filter(k=>S._nets[k]&&S._nets[k].on).length;
+   const alerte=nbCoches===1?`<div class="card mt8" style="border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.08)"><b style="color:var(--warn)">⚠️ Avec un seul réseau, tu auras très peu d'échanges</b><p class="sub mt8">L'échange n'est possible que si ton partenaire est présent sur ton réseau-objectif <b>et</b> toi sur le sien. Chaque réseau ajouté multiplie tes chances de match.</p></div>`:'';
    return `<div class="wrap">${bar}
    <h2>Tes réseaux</h2><p class="sub mb16">Coche <b>tous les réseaux où tu es présent</b> et mets simplement ton <b>pseudo</b> pour chacun — pas besoin du « @ » ni du lien complet, l'app s'en occupe. Tu vois l'aperçu du lien sous chaque champ ✓. Ils te serviront à suivre tes partenaires — et l'un d'eux sera ton objectif à l'étape suivante.</p>
-   ${rows}
-   <button class="btn mt8" onclick="obCreateAccounts()">Continuer</button></div>`;}
+   ${rows}${alerte}
+   <button class="btn mt16" onclick="obCreateAccounts()">Continuer</button></div>`;}
  // étape 3 : objectif + niche + bio
  if(S._target===undefined)S._target=S.me.target_platform||(myPlatforms()[0]||null);
  if(S._niche===undefined)S._niche=S.me.niche||null;
  const goals=myPlatforms();
+ const revient=(S.accts||[]).length>0&&!S.me.target_platform;
  return `<div class="wrap">${bar}
+   ${revient?`<div class="card mb16" style="border-color:var(--violet);background:linear-gradient(135deg,rgba(139,92,246,.18),rgba(236,72,153,.12))"><b>Dernière étape 🎯</b><p class="sub mt8">Il ne te manque que ça pour entrer : choisis le réseau où tu veux gagner des abonnés. Deux secondes, et tu swipes.</p></div>`:''}
    <h2>Ton objectif ${ic('target',18,'color:#f472b6')}</h2><p class="sub mb16">Sur quel réseau veux-tu <b>gagner des abonnés</b> ? Un seul à la fois (modifiable plus tard). Les autres membres te suivront là.</p>
    <div class="chips">${goals.map(k=>`<span class="chip ${S._target===k?'on':''}" style="${S._target===k?'background:'+GOAL_BG+';border-color:transparent':''}" onclick="S._target='${k}';go('onboarding')">${pfLabel(k)}</span>`).join('')}</div>
    <div class="field mt24"><label>Ta niche (info profil, facultatif)</label>
