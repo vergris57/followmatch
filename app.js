@@ -18,11 +18,70 @@ function esc(s){return (s??'').toString().replace(/[&<>"']/g,c=>({'&':'&amp;','<
 function initials(n){return (n||'?').slice(0,1).toUpperCase()}
 function fmtFol(n){return n>=1000?(n/1000).toFixed(1).replace('.0','')+'k':(n??0)}
 function level(sc){return sc<30?['À risque','lv-risque']:sc<60?['Standard','lv-standard']:sc<80?['Fiable','lv-fiable']:['Élite','lv-elite']}
-function lvBadge(sc){const[l,c]=level(sc);return `<span class="pill ${c}">🛡 ${l} · ${sc}</span>`}
+function lvBadge(sc){const[l,c]=level(sc);return `<span class="pill ${c}">${sc>=80?ic('crown',11):ic('shield',11)} ${l} · ${sc}</span>`}
 function left(t){if(!t)return'';const h=Math.max(0,Math.round((new Date(t)-Date.now())/36e5));return h+'h restantes'}
 function toast(m){const d=document.createElement('div');d.className='toast';d.innerHTML=m;$('toasts').appendChild(d);setTimeout(()=>d.remove(),4500)}
 function err(e){console.error(e);const m=(e&&(e.message||e.error_description))||'Erreur inattendue';
  toast('⚠️ '+esc(m.includes('limite quotidienne')?'Limite de 20 likes/jour atteinte — reviens demain 🌙':m))}
+/* ---------- kit UI : icônes SVG, logo, illustrations, confettis, vibrations ---------- */
+const IC={
+ target:'<circle cx="12" cy="12" r="7.4"/><circle cx="12" cy="12" r="3.6"/><circle cx="12" cy="12" r=".7" fill="currentColor" stroke="none"/>',
+ shield:'<path d="M12 3l7.2 2.7v5.2c0 4.7-3.1 8.2-7.2 9.8-4.1-1.6-7.2-5.1-7.2-9.8V5.7L12 3z"/><path d="M9.2 11.9l2 2 3.6-3.7"/>',
+ heart:'<path d="M12 20.5s-7.2-4.6-9.4-9C1 8.3 3 5 6.3 5c2.2 0 4 1.2 5.7 3.3C13.7 6.2 15.5 5 17.7 5 21 5 23 8.3 21.4 11.5c-2.2 4.4-9.4 9-9.4 9z" fill="currentColor" stroke="none"/>',
+ x:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+ trophy:'<path d="M7.5 4.5h9V10a4.5 4.5 0 0 1-9 0V4.5z"/><path d="M7.5 5.5H4.6c.1 2.8 1.4 4.4 3.4 4.9M16.5 5.5h2.9c-.1 2.8-1.4 4.4-3.4 4.9"/><path d="M12 14.5v2.6M8.7 20.5h6.6M12 17.1c-.5 1.8-1.4 2.8-2.4 3.4h4.8c-1-.6-1.9-1.6-2.4-3.4z"/>',
+ gear:'<path d="M4 7.2h8.5M16.7 7.2H20"/><circle cx="14.6" cy="7.2" r="2.1"/><path d="M4 16.8h3.3M11.5 16.8H20"/><circle cx="9.4" cy="16.8" r="2.1"/>',
+ pencil:'<path d="M4.5 19.5l.9-3.6L16.7 4.6a2 2 0 0 1 2.8 2.8L8.1 18.6l-3.6.9z"/><path d="M14.8 6.5l2.8 2.8"/>',
+ eye:'<path d="M2.8 12S6.4 5.9 12 5.9 21.2 12 21.2 12 17.6 18.1 12 18.1 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="3"/>',
+ wrench:'<path d="M20.6 5.4a5 5 0 0 1-6.7 6.5l-6.8 6.8a2.1 2.1 0 0 1-3-3l6.8-6.8a5 5 0 0 1 6.5-6.7l-3.2 3.2.8 2.9 2.9.8 2.7-3.7z"/>',
+ bell:'<path d="M17.8 15.2V10a5.8 5.8 0 1 0-11.6 0v5.2L4.5 17.6h15l-1.7-2.4z"/><path d="M10 20.6a2.2 2.2 0 0 0 4 0"/>',
+ gift:'<rect x="4.2" y="11" width="15.6" height="9.3" rx="1.6"/><path d="M3.8 7.3h16.4V11H3.8z"/><path d="M12 7.3v13M12 7.2c0-2.4-1.4-3.9-2.9-3.9-1.6 0-2.4 2-1 3.1 1 .8 3.9.8 3.9.8zM12 7.2c0-2.4 1.4-3.9 2.9-3.9 1.6 0 2.4 2 1 3.1-1 .8-3.9.8-3.9.8z"/>',
+ back:'<path d="M14.5 5.5 8 12l6.5 6.5"/>',
+ clock:'<circle cx="12" cy="12" r="8.2"/><path d="M12 7.6V12l3.1 2"/>',
+ flag:'<path d="M5.5 21V4.3"/><path d="M5.5 5c4.8-2.3 8 2.2 12.6.2v8.6c-4.6 2-7.8-2.5-12.6-.2"/>',
+ flame:'<path d="M12 3.6c3 2.7 5.3 5.6 5.3 8.8a5.3 5.3 0 0 1-10.6 0c0-1.6.6-3 1.5-4.4.5 1.1 1.3 1.8 2.3 2.1-.5-2.2 0-4.5 1.5-6.5z"/>',
+ archive:'<rect x="3.8" y="4" width="16.4" height="4.6" rx="1"/><path d="M5.8 8.6V19a1.6 1.6 0 0 0 1.6 1.6h9.2a1.6 1.6 0 0 0 1.6-1.6V8.6"/><path d="M10 12.6h4"/>',
+ share:'<path d="M12 14.5V3.8"/><path d="M8.2 7.2 12 3.4l3.8 3.8"/><path d="M5.5 11.5v6.7a2.2 2.2 0 0 0 2.2 2.2h8.6a2.2 2.2 0 0 0 2.2-2.2v-6.7"/>',
+ check:'<path d="M5 12.6l4.4 4.4L19 7.4"/>',
+ sparkles:'<path d="M12 3.8l1.7 4.5L18.2 10l-4.5 1.7L12 16.2l-1.7-4.5L5.8 10l4.5-1.7L12 3.8z"/><path d="M18.8 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z" fill="currentColor" stroke="none"/>',
+ crown:'<path d="M4.3 17 5.2 7.6l4.4 3.6L12 5.8l2.4 5.4 4.4-3.6.9 9.4z"/><path d="M5.8 20.4h12.4"/>',
+ camera:'<rect x="3.6" y="7" width="16.8" height="13" rx="2.6"/><circle cx="12" cy="13.2" r="3.7"/><path d="M8.6 7l1.3-2.4h4.2L15.4 7"/>',
+ dl:'<path d="M12 3.5V14"/><path d="M7.6 9.9 12 14.3l4.4-4.4"/><path d="M5 20.4h14"/>',
+ arrR:'<path d="M4.5 12h13"/><path d="M13.4 7.5 18 12l-4.6 4.5"/>',
+ arrL:'<path d="M19.5 12h-13"/><path d="M10.6 7.5 6 12l4.6 4.5"/>'
+};
+function ic(n,s,st){s=s||16;return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;${st||''}" aria-hidden="true">${IC[n]||''}</svg>`}
+function logoMark(s){s=s||40;return `<svg class="mark" width="${s}" height="${s}" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="lgm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs><path fill="url(#lgm)" d="M24 42.5C24 42.5 6.6 32 4.4 21.6 3 14.9 7.5 8.9 13.9 8.9c4.2 0 7.4 2.2 10.1 5.9 2.7-3.7 5.9-5.9 10.1-5.9 6.4 0 10.9 6 9.5 12.7C41.4 32 24 42.5 24 42.5Z"/><path d="M16.5 20.5h11.4" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M25.4 16.9l4.4 3.6-4.4 3.6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M31.5 28.1H20.1" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M22.6 24.5l-4.4 3.6 4.4 3.6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+function brandRow(s,f){s=s||22;f=f||18;return `<span class="brandrow">${logoMark(s)}<span class="logo" style="font-size:${f}px">FollowsMatch</span></span>`}
+function illo(n){
+ const G='<defs><linearGradient id="ilg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs>';
+ const star=(x,y,s)=>`<path d="M${x} ${y-s} L${x+s*.36} ${y-s*.36} L${x+s} ${y} L${x+s*.36} ${y+s*.36} L${x} ${y+s} L${x-s*.36} ${y+s*.36} L${x-s} ${y} L${x-s*.36} ${y-s*.36} Z" fill="#c4b5fd" opacity=".85"/>`;
+ const B={
+  sprout:`<path d="M48 74V46" stroke="url(#ilg)" stroke-width="4" stroke-linecap="round"/><path d="M48 52C48 40 38 34 27 34c0 12 9 19 21 18z" fill="url(#ilg)" opacity=".9"/><path d="M48 44c0-10 8-15 17-15 0 10-7 16-17 15z" fill="url(#ilg)" opacity=".6"/><path d="M30 78h36" stroke="rgba(196,181,253,.5)" stroke-width="4" stroke-linecap="round"/>${star(72,26,5)}${star(23,56,3.5)}`,
+  moon:`<path d="M64 55A24 24 0 0 1 35 26a24 24 0 1 0 29 29z" fill="url(#ilg)"/>${star(64,29,5)}${star(72,45,3.5)}${star(27,66,3.5)}`,
+  clock:`<circle cx="48" cy="48" r="24" stroke="url(#ilg)" stroke-width="4.5" fill="rgba(139,92,246,.08)"/><path d="M48 35v13l9 6" stroke="url(#ilg)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>${star(78,28,4.5)}${star(19,62,3.5)}`,
+  phone:`<rect x="30" y="16" width="36" height="64" rx="8" stroke="url(#ilg)" stroke-width="4" fill="rgba(139,92,246,.08)"/><path d="M48 62c0 0-9.5-6-10.7-11.6-.8-3.7 1.7-7 5.2-7 2.3 0 4 1.2 5.5 3.2 1.5-2 3.2-3.2 5.5-3.2 3.5 0 6 3.3 5.2 7C57.5 56 48 62 48 62z" fill="url(#ilg)"/><path d="M42 24h12" stroke="rgba(196,181,253,.6)" stroke-width="3" stroke-linecap="round"/>${star(76,24,4.5)}${star(21,70,3.5)}`,
+  key:`<circle cx="36" cy="40" r="13" stroke="url(#ilg)" stroke-width="4.5" fill="rgba(139,92,246,.08)"/><path d="M46 50 70 74M62 66l7-7M54 58l6-6" stroke="url(#ilg)" stroke-width="4.5" stroke-linecap="round"/>${star(70,26,4.5)}`,
+  match:`<path d="M34 58c0 0-12-7.6-13.6-14.7-1-4.7 2.2-8.9 6.6-8.9 2.9 0 5.1 1.5 7 4 1.9-2.5 4.1-4 7-4 4.4 0 7.6 4.2 6.6 8.9C46 50.4 34 58 34 58z" fill="url(#ilg)" opacity=".95"/><path d="M62 70c0 0-12-7.6-13.6-14.7-1-4.7 2.2-8.9 6.6-8.9 2.9 0 5.1 1.5 7 4 1.9-2.5 4.1-4 7-4 4.4 0 7.6 4.2 6.6 8.9C74 62.4 62 70 62 70z" fill="url(#ilg)" opacity=".5"/>${star(70,26,5)}${star(24,68,3.5)}`,
+  trophy:`<path d="M34 22h28v14a14 14 0 0 1-28 0V22z" stroke="url(#ilg)" stroke-width="4.5" fill="rgba(139,92,246,.08)"/><path d="M34 25h-8c.3 8 4 12.6 9.5 14M62 25h8c-.3 8-4 12.6-9.5 14M48 51v9M38 70h20M48 60c-1.4 5-4 8-7 10h14c-3-2-5.6-5-7-10z" stroke="url(#ilg)" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>${star(74,50,4.5)}${star(22,56,3.5)}`
+ };
+ return `<svg class="illo" width="108" height="108" viewBox="0 0 96 96" fill="none">${G}${B[n]||''}</svg>`;
+}
+function confettiBurst(n){
+ try{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return}catch(e){}
+ n=n||70;const cols=['#8b5cf6','#ec4899','#f472b6','#c026d3','#fbbf24','#34d399','#ffffff'];
+ for(let i=0;i<n;i++){const d=document.createElement('div');d.className='cf';
+  d.style.left=Math.random()*100+'vw';
+  d.style.background=cols[i%cols.length];
+  d.style.width=(6+Math.random()*6)+'px';d.style.height=(10+Math.random()*8)+'px';
+  d.style.animationDuration=(2.1+Math.random()*1.4)+'s';
+  d.style.animationDelay=(Math.random()*.35)+'s';
+  d.style.transform='rotate('+Math.random()*360+'deg)';
+  document.body.appendChild(d);setTimeout(()=>d.remove(),4300)}
+}
+function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+function hideSplash(){const s=document.getElementById('splash');if(!s||s.dataset.h)return;s.dataset.h='1';const wait=Math.max(0,650-performance.now());setTimeout(()=>{s.classList.add('out');setTimeout(()=>s.remove(),700)},wait)}
+
 const PLATFORMS={
  tiktok:   {label:'TikTok',    url:u=>'https://www.tiktok.com/@'+enc(u),      follow:'abonnés'},
  instagram:{label:'Instagram', url:u=>'https://instagram.com/'+enc(u),        follow:'abonnés'},
@@ -57,8 +116,8 @@ function matchInfo(m){
 function exchBox(otherName,iFollowNet,myNet){
  return `<div style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.35);border-radius:14px;padding:12px;margin-top:12px">
    <div class="center sub" style="color:#c4b5fd;font-weight:700;margin-bottom:4px">L'échange</div>
-   <div style="font-size:13.5px;padding:3px 0">➡️ Tu suis <b>${esc(otherName)}</b> sur <b>${esc(pfLabel(iFollowNet))}</b></div>
-   <div style="font-size:13.5px;padding:3px 0">⬅️ <b>${esc(otherName)}</b> te suit sur <b>${esc(pfLabel(myNet))}</b></div>
+   <div style="font-size:13.5px;padding:3px 0"><span style="color:#a78bfa">${ic('arrR',13)}</span> Tu suis <b>${esc(otherName)}</b> sur <b>${esc(pfLabel(iFollowNet))}</b></div>
+   <div style="font-size:13.5px;padding:3px 0"><span style="color:#f472b6">${ic('arrL',13)}</span> <b>${esc(otherName)}</b> te suit sur <b>${esc(pfLabel(myNet))}</b></div>
  </div>`;
 }
 
@@ -72,7 +131,7 @@ async function doInstall(){ if(_installPrompt){ _installPrompt.prompt(); try{awa
 function GATED(v){return ['swipe','matches','profile','detail','settings','admin','leaderboard','edit'].includes(v)}
 function vInstallGate(){
  const ios=isIOS();
- const btn=(!ios&&_installPrompt)?`<button class="btn mt16" onclick="doInstall()">📲 Installer l'app maintenant</button>`:'';
+ const btn=(!ios&&_installPrompt)?`<button class="btn mt16" onclick="doInstall()">${ic('dl',16)} Installer l'app maintenant</button>`:'';
  const how=ios
   ? `<div class="card mt16" style="text-align:left"><b>Sur iPhone / iPad</b><ol class="sub" style="margin:8px 0 0;padding-left:18px;line-height:1.9">
        <li>Appuie sur <b>Partager</b> (le carré avec une flèche ↑, en bas de Safari)</li>
@@ -84,8 +143,8 @@ function vInstallGate(){
        <li>Ouvre FollowsMatch depuis là</li></ol></div>`;
  return `<div class="wrap" style="padding-top:28px">
    <div class="center">
-     <div class="logo">FollowsMatch</div>
-     <div class="big mt16">📲</div>
+     ${brandRow(30,22)}
+     <div class="mt16">${illo('phone')}</div>
      <h1 style="font-size:23px" class="mt8">Installe l'app pour continuer</h1>
      <p class="sub mt8">FollowsMatch s'utilise comme une vraie app installée sur ton téléphone : plus rapide, plein écran, et tu reçois les alertes de match. ${S.session?'Ton compte est prêt ✅':''}</p>
    </div>
@@ -110,16 +169,16 @@ function gainsCard(){const g=myGains();return `<div class="card mt16" style="tex
    <p class="sub" style="font-size:12.5px">Abonnés gagnés grâce à FollowsMatch</p>
    <div style="font-size:46px;font-weight:800;line-height:1.1;background:${GOAL_BG};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">+${g.total}</div>
    <p class="sub" style="font-size:12.5px">${g.week>0?'dont +'+g.week+' cette semaine 🔥':'complète un échange pour voir ce chiffre grimper'}</p>
-   <button class="btn small mt8" onclick="shareGains()">Partager mes gains 📲</button>
+   <button class="btn small mt8" onclick="shareGains()">Partager mes gains ${ic('share',13)}</button>
  </div>`}
 async function shareGains(){const g=myGains();const url=inviteUrl();const text=`J'ai gagné ${g.total} abonné${g.total>1?'s':''} sur FollowsMatch 🚀 Un follow contre un follow, vérifié. Rejoins-moi :`;try{if(navigator.share){await navigator.share({title:'FollowsMatch',text,url});return}}catch(e){return}copyInvite()}
 /* écran « pile vide » — anti démarrage à froid */
 function vEmptyDeck(){
  const myT=S.me.target_platform;
- const notifBtn=(pushOK()&&Notification.permission!=='granted')?`<button class="btn ghost mt8" onclick="enableNotifs()">🔔 Préviens-moi dès qu'il y a des profils</button>`:'';
+ const notifBtn=(pushOK()&&Notification.permission!=='granted')?`<button class="btn ghost mt8" onclick="enableNotifs()">${ic('bell',14)} Préviens-moi dès qu'il y a des profils</button>`:'';
  return `<div class="card center" style="padding:36px 20px">
-   <div class="big">🌱</div>
-   <h2 class="mt8">Pas encore de profil à échanger</h2>
+   ${illo('sprout')}
+   <h2 class="mt16">Pas encore de profil à échanger</h2>
    <p class="sub mt8">FollowsMatch grandit chaque jour. Plus il y a de créateurs sur <b>${esc(pfLabel(myT))}</b>, plus tu auras d'échanges — invite les tiens pour lancer la machine 👇</p>
    <button class="btn mt16" onclick="shareInvite()">Inviter des amis 🎁 (+5 pts chacun)</button>
    ${notifBtn}
@@ -136,7 +195,7 @@ function previewMyProfile(){
    <div class="pcard" style="position:relative;margin:10px 0 0;transform:none">
      <div class="center">${av(u.display_name,92,34,u.avatar_url)}
        <h2>${esc(u.display_name)}</h2>
-       <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(myT))}</span></div>
+       <div class="mt8"><span class="pill" style="background:${GOAL_BG}">${ic('target',11)} veut grandir sur ${esc(pfLabel(myT))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
          <span class="pill" style="background:var(--panel2)">${esc(u.niche||'Créateur')}</span>
          ${acc?`<span class="pill" style="background:var(--panel2)">${fmtFollowers(acc.follower_count)} ${pfFollow(myT)}</span>`:''}
@@ -179,7 +238,7 @@ function dismissNotifPrompt(){S._notifAsked=true;if(S.view==='swipe')$('screen')
 function notifBanner(){
  if(!pushOK()||Notification.permission!=='default'||S._notifAsked)return '';
  return `<div class="card" style="border-color:var(--violet);display:flex;gap:10px;align-items:center;margin-bottom:14px">
-   <span style="font-size:22px">🔔</span>
+   <span style="color:#a78bfa">${ic('bell',22)}</span>
    <div style="flex:1"><b>Active les notifications</b><p class="sub" style="font-size:12.5px">Sois prévenu dès qu'un match ou une action t'attend.</p></div>
    <button class="btn small" onclick="enableNotifs()">Activer</button>
    <button class="btn ghost small" onclick="dismissNotifPrompt()">Plus tard</button>
@@ -191,26 +250,61 @@ function notifSettingsCard(){
  else if(Notification.permission==='granted')inner=`<p class="sub mt8" style="color:var(--ok)">Activées ✔ — alerte pour un match, quand c'est à toi d'agir, et un rappel avant l'expiration.</p>`;
  else if(Notification.permission==='denied')inner=`<p class="sub mt8">Bloquées dans ton navigateur — pour les réactiver, autorise les notifications pour ce site dans les réglages du navigateur.</p>`;
  else inner=`<p class="sub mt8">Reçois une alerte pour un nouveau match, quand c'est à toi d'agir, et avant l'expiration.</p><button class="btn small mt8" onclick="enableNotifs()">Activer les notifications</button>`;
- return `<div class="card mt16"><b>🔔 Notifications</b>${inner}</div>`;
+ return `<div class="card mt16"><b>${ic('bell',14)} Notifications</b>${inner}</div>`;
 }
 
 /* ---------- routing ---------- */
 function go(v,arg){
- if(GATED(v)&&!isInstalled()){S.view='installgate';S.curMatch=arg||null;$('screen').innerHTML=vInstallGate();$('screen').scrollTop=0;$('nav').classList.add('hidden');return}
+ hideSplash();
+ if(GATED(v)&&!isInstalled()){S.view='installgate';S.curMatch=arg||null;$('screen').innerHTML=vInstallGate();$('screen').scrollTop=0;$('nav').classList.add('hidden');animIn();return}
  S.view=v;S.curMatch=arg||null;
  const views={landing:vLanding,onboarding:vOnboarding,waitverif:vWait,swipe:vSwipe,matches:vMatches,detail:vDetail,profile:vProfile,settings:vSettings,admin:vAdmin,resetpw:vResetPw,leaderboard:vLeaderboard,edit:vEdit};
  $('screen').innerHTML=(views[v]||vLanding)();
- $('screen').scrollTop=0;
+ $('screen').scrollTop=0;animIn();
  const main=['swipe','matches','profile'].includes(v);
  $('nav').classList.toggle('hidden',!main);
  ['swipe','matches','profile'].forEach(t=>$('nb-'+t).classList.toggle('on',v===t));
  updateBadge();
- if(v==='swipe')refreshDeck();
- if(v==='matches')refreshMatches().then(()=>{$('screen').innerHTML=vMatches();updateBadge()});
- if(v==='profile')refreshProfile().then(()=>{if(S.view==='profile')$('screen').innerHTML=vProfile()});
+ if(v==='swipe'){attachDrag();refreshDeck()}
+ if(v==='matches')refreshMatches().then(()=>{if(S.view==='matches'){$('screen').innerHTML=vMatches();updateBadge()}});
+ if(v==='profile'){animateGauge();refreshProfile().then(()=>{if(S.view==='profile'){$('screen').innerHTML=vProfile();setGaugeNow()}})}
  if(v==='admin')refreshAdmin().then(()=>{if(S.view==='admin')$('screen').innerHTML=vAdmin()});
  if(v==='leaderboard')loadLeaderboard().then(()=>{if(S.view==='leaderboard')$('screen').innerHTML=vLeaderboard()});
 }
+function animIn(){const sc=$('screen');sc.classList.remove('viewin');void sc.offsetWidth;sc.classList.add('viewin')}
+/* swipe au doigt — vraie physique de drag sur la carte du dessus */
+function attachDrag(){
+ const p=S.deck&&S.deck[0];if(!p)return;
+ const el=$('card-'+p.user_id);if(!el||el._drag)return;el._drag=true;
+ let x0=0,y0=0,dx=0,dy=0,on=false;
+ const yes=el.querySelector('.stamp.yes'),no=el.querySelector('.stamp.no');
+ el.addEventListener('pointerdown',e=>{if(e.target.closest('a,button'))return;on=true;dx=0;dy=0;x0=e.clientX;y0=e.clientY;el.classList.add('dragging');try{el.setPointerCapture(e.pointerId)}catch(_){}});
+ el.addEventListener('pointermove',e=>{if(!on)return;dx=e.clientX-x0;dy=e.clientY-y0;
+  el.style.transform=`translate(${dx}px,${dy*0.35}px) rotate(${dx*0.06}deg)`;
+  if(yes)yes.style.opacity=Math.min(1,Math.max(0,dx/70));
+  if(no)no.style.opacity=Math.min(1,Math.max(0,-dx/70));});
+ const end=()=>{if(!on)return;on=false;el.classList.remove('dragging');
+  if(dx>90){
+   if(S.likesLeft<=0){reset();toast('Limite de 20 likes/jour atteinte — reviens demain 🌙');return}
+   el.style.transition='transform .45s ease-out,opacity .4s';el.style.transform=`translate(${window.innerWidth}px,${dy*0.35}px) rotate(18deg)`;el.style.opacity=0;swipe(true,true);
+  }else if(dx<-90){
+   el.style.transition='transform .45s ease-out,opacity .4s';el.style.transform=`translate(-${window.innerWidth}px,${dy*0.35}px) rotate(-18deg)`;el.style.opacity=0;swipe(false,true);
+  }else reset();
+  dx=0;dy=0};
+ const reset=()=>{el.style.transform='';if(yes)yes.style.opacity=0;if(no)no.style.opacity=0};
+ el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+}
+/* jauge du score : remplissage animé + compteur */
+function animateGauge(){
+ const arc=$('gauge-arc'),num=$('gauge-num');if(!arc||arc.dataset.an)return;arc.dataset.an='1';
+ const sc=+arc.dataset.sc||0,C=Math.PI*80,t0=performance.now(),D=900;
+ function f(t){const k=Math.min(1,(t-t0)/D),e=1-Math.pow(1-k,3),v=sc*e;
+  arc.setAttribute('stroke-dasharray',(C*v/100).toFixed(1)+' '+C.toFixed(1));
+  if(num)num.textContent=Math.round(v);
+  if(k<1)requestAnimationFrame(f)}
+ requestAnimationFrame(f);
+}
+function setGaugeNow(){const arc=$('gauge-arc'),num=$('gauge-num');if(!arc)return;arc.dataset.an='1';const sc=+arc.dataset.sc||0,C=Math.PI*80;arc.setAttribute('stroke-dasharray',(C*sc/100).toFixed(1)+' '+C.toFixed(1));if(num)num.textContent=sc}
 function updateBadge(){
  const n=S.matches.filter(m=>needsMe(m)).length;
  const b=$('mbadge');b.textContent=n;b.classList.toggle('hidden',n===0);
@@ -231,11 +325,16 @@ async function loadMe(){
  S.likesLeft=Math.max(0,20-(p.likes_reset_on===new Date().toISOString().slice(0,10)?p.daily_likes_used:0));
 }
 async function refreshDeck(){
+ S._deckLoading=true;
+ if(S.view==='swipe'&&(!S.deck||S.deck.length===0))$('screen').innerHTML=vSwipe();
  try{const{data,error}=await sb.rpc('fn_suggestions',{p_limit:15});if(error)throw error;
-  S.deck=data||[];if(S.view==='swipe')$('screen').innerHTML=vSwipe();
+  S.deck=data||[];
  }catch(e){err(e)}
+ S._deckLoading=false;
+ if(S.view==='swipe'){$('screen').innerHTML=vSwipe();attachDrag()}
 }
 async function refreshMatches(){
+ S._mLoading=true;
  try{
   const q='id,status,user_a,user_b,user_a_target,user_b_target,expires_at,created_at,completed_at,step1_a_followed_at,step2_b_confirmed_at,step3_b_followed_back_at,step4_a_confirmed_at,expired_fault,'
    +'a:profiles!matches_user_a_fkey(id,display_name,trust_score,target_platform,social_accounts(username,platform,verification_status)),'
@@ -243,6 +342,7 @@ async function refreshMatches(){
   const{data,error}=await sb.from('matches').select(q).order('created_at',{ascending:false});if(error)throw error;
   S.matches=data||[];
  }catch(e){err(e)}
+ S._mLoading=false;
 }
 async function refreshProfile(){
  try{const{data}=await sb.from('trust_events').select('*').order('created_at',{ascending:false}).limit(15);
@@ -318,7 +418,7 @@ async function loginGoogle(){
 }
 function vResetPw(){
  return `<div class="wrap" style="padding-top:40px">
-   <div class="center"><div class="big">🔑</div><h2 class="mt8">Choisis un nouveau mot de passe</h2>
+   <div class="center">${illo('key')}<h2 class="mt16">Choisis un nouveau mot de passe</h2>
    <p class="sub mt8">Ton identité est confirmée via le lien e-mail — il ne reste qu'à en choisir un nouveau.</p></div>
    <div class="card mt16">
      <div class="field"><label>Nouveau mot de passe</label><input id="r-pw1" type="password" placeholder="8 caractères minimum"></div>
@@ -342,30 +442,34 @@ async function doSetNewPw(){
 /* ---------- écrans ---------- */
 function vLanding(){
  const setup=CONFIGURED?'':'<div class="banner">⚙️ <b>Serveur non configuré</b> — le branchement Supabase n\'est pas encore fait (config.js). L\'interface est visible mais la connexion est désactivée.</div>';
- const mode=S._authMode||'signup';
- return `${setup}<div class="hero">
-   <div class="logo">FollowsMatch</div>
-   <h1>Gagne des abonnés<br>là où tu en as besoin</h1>
-   <p class="sub">Swipe. Match. Grandis.</p>
-   <div class="steps3">
-     <div class="card"><div class="num">1</div><div><b>Tes réseaux + ton objectif</b><p class="sub">Ajoute tes réseaux, puis choisis LE réseau où tu veux gagner des abonnés.</p></div></div>
-     <div class="card"><div class="num">2</div><div><b>Match & échange croisé</b><p class="sub">L'autre te suit sur TON réseau-objectif ; toi tu le suis sur le SIEN. Chacun grandit là où il veut.</p></div></div>
-     <div class="card"><div class="num">3</div><div><b>Grandis</b><p class="sub">Les profils fiables gagnent un score de confiance et plus de visibilité.</p></div></div>
-   </div>
-   <div class="authbox card">
-     <div class="tabs2">
-       <span class="chip ${mode==='signup'?'on':''}" onclick="S._authMode='signup';go('landing')">Créer un compte</span>
-       <span class="chip ${mode==='login'?'on':''}" onclick="S._authMode='login';go('landing')">Se connecter</span>
-     </div>
-     <button class="btn ghost" ${CONFIGURED?'':'disabled'} onclick="loginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuer avec Google</button>
-     <div class="center sub" style="margin:12px 0;font-size:12px;opacity:.7">— ou avec ton e-mail —</div>
-     <div class="field"><label>E-mail</label><input id="a-email" type="email" placeholder="toi@email.com"></div>
+ const mode=S._authMode||null;
+ const G='<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+ const keep="S._email=(document.getElementById('a-email')||{}).value||S._email;";
+ const fields=`
+     <div class="field"><label>E-mail</label><input id="a-email" type="email" placeholder="toi@email.com" value="${esc(S._email||'')}"></div>
      <div class="field"><label>Mot de passe</label><input id="a-pw" type="password" placeholder="8 caractères minimum"></div>
      ${mode==='login'?'<p class="sub" style="font-size:12.5px;text-align:right;margin-top:-6px;margin-bottom:10px"><span class="link" onclick="doForgot()">Mot de passe oublié ?</span></p>':''}
      <button class="btn" id="a-go" ${CONFIGURED?'':'disabled'} onclick="${mode==='signup'?'doSignup()':'doLogin()'}">${mode==='signup'?'Créer mon compte':'Se connecter'}</button>
-     <p class="sub center mt8" style="font-size:12px">${mode==='signup'?'En continuant tu acceptes les CGU. 100 % gratuit.':' '}</p>
+     ${mode==='signup'?'<p class="sub center mt8" style="font-size:11.5px">En continuant tu acceptes les CGU. 100 % gratuit.</p>':''}`;
+ return `${setup}<div class="hero">
+   ${logoMark(64)}
+   <div class="logo" style="font-size:30px;display:block;margin-top:10px">FollowsMatch</div>
+   <h1>Gagne des abonnés<br><em>là où tu en as besoin</em></h1>
+   <p class="tagline mt8">Swipe · Match · Grandis</p>
+   <div class="authbox mt24">
+     <button class="btn ghost" ${CONFIGURED?'':'disabled'} onclick="loginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%">${G} Continuer avec Google</button>
+     ${mode?`<div class="center sub" style="margin:12px 0 10px;font-size:12px;opacity:.7">— ${mode==='signup'?'ou crée ton compte avec ton e-mail':'ou connecte-toi avec ton e-mail'} —</div><div class="viewin">${fields}</div>`
+           :`<button class="btn mt8" ${CONFIGURED?'':'disabled'} onclick="S._authMode='signup';go('landing')">Créer mon compte</button>`}
+     <p class="sub center mt16" style="font-size:13px">${mode==='login'
+       ?`Nouveau ici ? <span class="link" onclick="${keep}S._authMode='signup';go('landing')">Crée ton compte</span>`
+       :`Déjà un compte ? <span class="link" onclick="${keep}S._authMode='login';go('landing')">Se connecter</span>`}</p>
    </div>
-   <p class="sub mt16" style="font-size:12px">Aucun follow automatisé — c'est toi qui suis, l'app vérifie et protège les sérieux.</p>
+   <div class="card mt24" style="text-align:left;padding:13px 16px">
+     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">1</div><div style="font-size:13.5px;line-height:1.4"><b>Ton objectif</b> — <span class="sub" style="font-size:13px">choisis LE réseau où tu veux gagner des abonnés.</span></div></div>
+     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">2</div><div style="font-size:13.5px;line-height:1.4"><b>Match</b> — <span class="sub" style="font-size:13px">l'autre te suit là ; toi, tu le suis sur le sien.</span></div></div>
+     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">3</div><div style="font-size:13.5px;line-height:1.4"><b>Grandis</b> — <span class="sub" style="font-size:13px">follow mutuel vérifié en 4 étapes. Zéro bot.</span></div></div>
+   </div>
+   <div class="netchips" style="margin-top:16px"><span>100 % gratuit</span><span>Zéro bot</span><span>TikTok · Insta · Snap · X</span></div>
  </div>`;
 }
 
@@ -396,8 +500,8 @@ function vOnboarding(){
  if(S._niche===undefined)S._niche=S.me.niche||null;
  const goals=myVerifiedPlatforms();
  return `<div class="wrap">${bar}
-   <h2>Ton objectif 🎯</h2><p class="sub mb16">Sur quel réseau veux-tu <b>gagner des abonnés</b> ? Un seul à la fois (modifiable plus tard). Les autres membres te suivront là.</p>
-   <div class="chips">${goals.map(k=>`<span class="chip ${S._target===k?'on':''}" style="${S._target===k?'background:'+GOAL_BG+';border-color:transparent':''}" onclick="S._target='${k}';go('onboarding')">🎯 ${pfLabel(k)}</span>`).join('')}</div>
+   <h2>Ton objectif ${ic('target',18,'color:#f472b6')}</h2><p class="sub mb16">Sur quel réseau veux-tu <b>gagner des abonnés</b> ? Un seul à la fois (modifiable plus tard). Les autres membres te suivront là.</p>
+   <div class="chips">${goals.map(k=>`<span class="chip ${S._target===k?'on':''}" style="${S._target===k?'background:'+GOAL_BG+';border-color:transparent':''}" onclick="S._target='${k}';go('onboarding')">${pfLabel(k)}</span>`).join('')}</div>
    <div class="field mt24"><label>Ta niche (info profil, facultatif)</label>
      <div class="chips">${NICHES.map(n=>`<span class="chip ${S._niche===n?'on':''}" onclick="S._niche='${n}';go('onboarding')">${n}</span>`).join('')}</div>
    </div>
@@ -426,7 +530,7 @@ async function obFinish(){
  const{error}=await sb.from('profiles').update({niche:S._niche||null,bio:$('f-bio').value}).eq('id',S.me.id);
  if(error){err(error);return}
  S.me.target_platform=S._target;S.me.niche=S._niche||null;S.me.bio=$('f-bio').value;
- toast('Profil créé — objectif : '+pfLabel(S._target)+' 🎉');
+ toast('Profil créé — objectif : '+pfLabel(S._target)+' 🎉');confettiBurst(45);
  await refreshMatches();applyReferral();go('swipe');
 }
 function vWait(){
@@ -439,7 +543,7 @@ function vWait(){
  }).join('');
  const anyVerified=myVerifiedPlatforms().length>0;
  return `<div class="wrap">
-   <div class="center"><div class="big">🕐</div><h2 class="mt8">Vérifie tes réseaux</h2>
+   <div class="center">${illo('clock')}<h2 class="mt16">Vérifie tes réseaux</h2>
    <p class="sub mt8">On vérifie que chaque compte t'appartient — sous 24h, souvent bien plus vite. Tu pourras choisir ton objectif dès qu'<b>au moins un</b> réseau est vérifié.</p></div>
    ${cards}
    <button class="btn mt16" onclick="checkVerif()">J'ai placé les codes / Actualiser</button>
@@ -455,17 +559,27 @@ async function checkVerif(){
 }
 
 /* ---------- swipe ---------- */
+function skDeck(){
+ return `<div class="skcard">
+   <div class="sk" style="width:112px;height:112px;border-radius:50%;margin-top:6px"></div>
+   <div class="sk" style="width:140px;height:20px"></div>
+   <div class="sk" style="width:180px;height:14px"></div>
+   <div class="sk" style="width:220px;height:12px"></div>
+   <div class="sk" style="width:100%;height:74px;border-radius:14px;margin-top:10px"></div>
+ </div>`;
+}
 function vSwipe(){
  const d=S.deck;const myT=S.me.target_platform;
- const admin=S.me?.is_admin?`<button class="btn ghost small" onclick="go('admin')">🛠 Admin</button>`:'';
- const cards=d.length===0?vEmptyDeck()
+ const admin=S.me?.is_admin?`<button class="btn ghost small" onclick="go('admin')" title="Admin">${ic('wrench',15)}</button>`:'';
+ const cards=d.length===0?(S._deckLoading?skDeck():vEmptyDeck())
   :d.slice(0,3).map((p,i)=>{
    const goal=p.target_platform;
    return `
    <div class="pcard ${i===1?'back1':i===2?'back2':''}" id="card-${p.user_id}" style="z-index:${9-i}">
+     <div class="stamp yes">SUIVRE</div><div class="stamp no">PASSER</div>
      <div class="center">${av(p.display_name,92,34,p.avatar_url)}
        <h2>${esc(p.display_name)}</h2>
-       <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(goal))}</span></div>
+       <div class="mt8"><span class="pill" style="background:${GOAL_BG}">${ic('target',11)} veut grandir sur ${esc(pfLabel(goal))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
          <span class="pill" style="background:var(--panel2)">${esc(p.niche||'Créateur')}</span>
          <span class="pill" style="background:var(--panel2)">${fmtFollowers(p.target_follower_count)} ${pfFollow(goal)}</span>
@@ -476,24 +590,25 @@ function vSwipe(){
      ${exchBox(p.display_name,goal,myT)}
      <div class="spacer"></div>
      <a class="sub center mt8" style="text-decoration:none;display:block" href="${pfUrl(goal,p.target_username)}" target="_blank" rel="noopener">Voir son ${esc(pfLabel(goal))} : @${esc(p.target_username||'')} ↗</a>
-     <button onclick="event.stopPropagation();blockUser('${p.user_id}')" style="background:none;border:none;color:var(--muted);font-size:11.5px;margin:10px auto 0;display:block;cursor:pointer;opacity:.65">🚫 Bloquer / signaler</button>
+     <button onclick="event.stopPropagation();blockUser('${p.user_id}')" style="background:none;border:none;color:var(--muted);font-size:11.5px;margin:10px auto 0;display:flex;align-items:center;gap:4px;cursor:pointer;opacity:.65">${ic('flag',11)} Bloquer / signaler</button>
    </div>`;
    }).reverse().join('');
  return `<div class="wrap">
-   <div class="row"><span class="logo">FollowsMatch</span><div class="spacer"></div><button class="btn ghost small" onclick="go('leaderboard')">🏆</button>${admin}<span class="pill" style="background:${GOAL_BG}">🎯 Objectif : ${esc(pfLabel(myT))}</span></div>
+   <div class="row">${brandRow(24,17)}<div class="spacer"></div><button class="btn ghost small" onclick="go('leaderboard')" title="Classement">${ic('trophy',15)}</button>${admin}<span class="pill" style="background:${GOAL_BG}">${ic('target',11)} ${esc(pfLabel(myT))}</span></div>
    ${notifBanner()}${goalBar()}
    <div class="deck">${cards}</div>
    ${d.length?`<div class="actions">
-     <button class="act" onclick="swipe(false)">✖️</button>
-     <button class="act like" onclick="swipe(true)">❤️</button>
+     <button class="act" onclick="swipe(false)" aria-label="Passer">${ic('x',26)}</button>
+     <button class="act like" onclick="swipe(true)" aria-label="Suivre">${ic('heart',32)}</button>
    </div>
-   <div class="counter">Likes restants aujourd'hui : <b>${S.likesLeft}/20</b> · Les créateurs de taille proche apparaissent en premier</div>`:''}
+   <div class="counter">Glisse la carte ou tape ${ic('heart',11,'color:#f472b6')} · <b>${S.likesLeft}/20</b> likes aujourd'hui</div>`:''}
  </div>`;
 }
-async function swipe(like){
+async function swipe(like,fromDrag){
  const p=S.deck[0];if(!p)return;
- if(like&&S.likesLeft<=0){toast('Limite de 20 likes/jour atteinte — reviens demain 🌙');return}
- const el=$('card-'+p.user_id);if(el)el.classList.add(like?'fly-r':'fly-l');
+ if(like&&S.likesLeft<=0){if(!fromDrag)toast('Limite de 20 likes/jour atteinte — reviens demain 🌙');return}
+ buzz(like?14:6);
+ const el=$('card-'+p.user_id);if(el&&!fromDrag)el.classList.add(like?'fly-r':'fly-l');
  try{
    const{data:matchId,error}=await sb.rpc('fn_swipe',{p_target:p.user_id,p_direction:like?'like':'pass'});
    if(error)throw error;
@@ -501,22 +616,24 @@ async function swipe(like){
    setTimeout(async()=>{
      S.deck.shift();
      if(matchId){await refreshMatches();showMatchModal(p,matchId)}
-     if(S.view==='swipe')$('screen').innerHTML=vSwipe();
+     if(S.view==='swipe'){$('screen').innerHTML=vSwipe();attachDrag()}
      if(S.deck.length<4)refreshDeck();
    },300);
- }catch(e){if(el)el.classList.remove('fly-r','fly-l');err(e)}
+ }catch(e){if(el){el.classList.remove('fly-r','fly-l');el.style.transform='';el.style.opacity=''}err(e)}
 }
 function showMatchModal(p,matchId){
  const myT=S.me.target_platform;
  const box=document.createElement('div');box.id='modal';
  box.innerHTML=`<div class="box">
-   <div class="big">🎉</div><h2>C'est un match !</h2>
-   <div class="duo">${av(S.me.display_name,64,26)}${av(p.display_name,64,26)}</div>
+   <div class="duo">${av(S.me.display_name,68,26)}${av(p.display_name,68,26)}</div>
+   <h2 class="matchtitle mt8">C'est un match !</h2>
+   <p class="sub" style="font-size:13px">Vous allez grandir ensemble ${ic('sparkles',13,'color:#f472b6')}</p>
    ${exchBox(p.display_name,p.target_platform,myT)}
    <button class="btn mt16" onclick="closeModal();go('detail','${matchId}')">Commencer l'échange</button>
    <button class="btn ghost mt8" onclick="closeModal()">Continuer à swiper</button>
  </div>`;
  document.body.appendChild(box);
+ confettiBurst(80);buzz([40,60,40]);
  updateBadge();
 }
 function closeModal(){const m=$('modal');if(m)m.remove()}
@@ -544,16 +661,20 @@ function retentionDue(){
  }
  return out.slice(0,1);
 }
+function skMatches(){
+ return [1,2,3].map(()=>`<div class="mitem" style="pointer-events:none"><div class="sk" style="width:46px;height:46px;border-radius:50%"></div><div style="flex:1"><div class="sk" style="width:40%;height:15px"></div><div class="sk" style="width:70%;height:11px;margin-top:7px"></div></div></div>`).join('');
+}
 function vMatches(){
  const item=m=>{const[c,l]=stLabel(m);const o=otherOf(m);const mi=matchInfo(m);return `<div class="mitem" onclick="go('detail','${m.id}')">
    ${av(o.display_name)}
-   <div><b>${esc(o.display_name)}</b> <span class="pill" style="background:${GOAL_BG};font-size:10px;padding:2px 8px">🎯 ${esc(pfLabel(mi.iFollowNet))}</span><div class="st ${c}">${l}</div></div>
-   <div class="spacer"></div>${m.expires_at&&!['completed','expired','reported'].includes(m.status)?`<span class="timer">⏳ ${left(m.expires_at)}</span>`:''}
+   <div><b>${esc(o.display_name)}</b> <span class="pill" style="background:${GOAL_BG};font-size:10px;padding:2px 8px">${ic('target',10)} ${esc(pfLabel(mi.iFollowNet))}</span><div class="st ${c}">${l}</div></div>
+   <div class="spacer"></div>${m.expires_at&&!['completed','expired','reported'].includes(m.status)?`<span class="timer">${ic('clock',11)} ${left(m.expires_at)}</span>`:''}
  </div>`};
  const act=S.matches.filter(needsMe);
  const wait=S.matches.filter(m=>!needsMe(m)&&!['completed','expired','reported'].includes(m.status));
  const hist=S.matches.filter(m=>['completed','expired','reported'].includes(m.status));
- const sec=(t,arr)=>arr.length?`<h2 class="mt24" style="font-size:15px;color:var(--muted)">${t}</h2><div class="mt8">${arr.map(item).join('')}</div>`:'';
+ const ICONS_SEC={'À toi de jouer':'flame','En attente de l\'autre':'clock','Historique':'archive'};
+ const sec=(t,arr)=>arr.length?`<h2 class="mt24 sect">${ic(ICONS_SEC[t]||'flame',14)} ${t}</h2><div class="mt8">${arr.map(item).join('')}</div>`:'';
  const ret=retentionDue().map(({m,day})=>{const mi=matchInfo(m);return `<div class="card mt16" style="border-color:var(--warn)">
    <b>Contrôle fidélité (J${day})</b>
    <p class="sub mt8">Est-ce que <b>${esc(mi.other.display_name)}</b> te suit toujours sur ${esc(pfLabel(mi.theyFollowMeNet))} ?</p>
@@ -561,8 +682,8 @@ function vMatches(){
    <button class="btn ghost small" onclick="retAnswer('${m.id}',${day},false)">Non 🚩</button></div>
  </div>`}).join('');
  return `<div class="wrap"><h1 style="font-size:22px">Tes matchs</h1>${ret}
-   ${S.matches.length===0?'<div class="card center mt16" style="padding:40px 20px"><div class="big">🤝</div><p class="sub mt8">Pas encore de match — va swiper !</p></div>':''}
-   ${sec('🔥 Action requise',act)}${sec('⏳ En attente de l\'autre',wait)}${sec('📁 Historique',hist)}
+   ${S.matches.length===0?(S._mLoading?`<div class="mt16">${skMatches()}</div>`:`<div class="card center mt16" style="padding:40px 20px">${illo('match')}<h2 class="mt16" style="font-size:17px">Pas encore de match</h2><p class="sub mt8">Ton premier match t'attend dans la pile — va swiper !</p><button class="btn small mt16" onclick="go('swipe')">Aller swiper</button></div>`):''}
+   ${sec('À toi de jouer',act)}${sec('En attente de l\'autre',wait)}${sec('Historique',hist)}
    <p class="sub mt24" style="font-size:12.5px">Chaque étape a 48h. Celui qui laisse expirer perd 10 points — pas l'autre.</p>
  </div>`;
 }
@@ -577,16 +698,16 @@ function vDetail(){
  const mi=matchInfo(m);const A=mi.A;const o=mi.other;const u=esc(o.display_name);
  const netA=mi.netA,netB=mi.netB;                       // A suit B sur netB ; B suit A sur netA
  const steps=[
-  {t:A?('1 · Tu suis '+u+' sur '+pfLabel(netB)):('1 · '+u+' te suit sur '+pfLabel(netB)),
+  {t:A?('Tu suis '+u+' sur '+pfLabel(netB)):(u+' te suit sur '+pfLabel(netB)),
    p:A?('Ouvre son '+pfLabel(netB)+', abonne-toi, puis déclare-le ici.'):('Il/elle te suit en premier, sur ton '+pfLabel(netB)+'.'),
    done:!!m.step1_a_followed_at,cur:m.status==='pending_a_follow'},
-  {t:A?('2 · '+u+' confirme ton follow'):('2 · Tu confirmes le follow reçu'),
+  {t:A?(u+' confirme ton follow'):'Tu confirmes le follow reçu',
    p:A?'Il/elle vérifie ses abonnés.':('Vérifie tes '+pfFollow(netB)+' '+pfLabel(netB)+' et confirme.'),
    done:!!m.step2_b_confirmed_at,cur:m.status==='pending_b_confirm'},
-  {t:A?('3 · '+u+' te suit sur '+pfLabel(netA)):('3 · Tu suis '+u+' sur '+pfLabel(netA)),
+  {t:A?(u+' te suit sur '+pfLabel(netA)):('Tu suis '+u+' sur '+pfLabel(netA)),
    p:A?('Sur ton '+pfLabel(netA)+', il/elle te suit en retour et le déclare.'):('Ouvre son '+pfLabel(netA)+', abonne-toi, puis déclare-le.'),
    done:!!m.step3_b_followed_back_at,cur:m.status==='pending_b_followback'},
-  {t:A?('4 · Tu confirmes le follow reçu'):('4 · '+u+' confirme ton follow'),
+  {t:A?'Tu confirmes le follow reçu':(u+' confirme ton follow'),
    p:'Dernière confirmation → match complété : +10 points chacun.',done:!!m.step4_a_confirmed_at,cur:m.status==='pending_a_confirm'}
  ];
  const followLink=mi.iFollowAcct?`<a class="btn ghost" style="text-decoration:none" href="${pfUrl(mi.iFollowNet,mi.iFollowAcct.username)}" target="_blank" rel="noopener">Ouvrir le ${pfLabel(mi.iFollowNet)} de ${u} : @${esc(mi.iFollowAcct.username)} ↗</a>`:'';
@@ -600,13 +721,13 @@ function vDetail(){
  else if(m.status==='reported') cta=`<div class="card center"><p class="sub">🚩 Signalement en cours de vérification par l'équipe.</p></div>`;
  else cta=`<div class="card center"><p class="sub">⏳ Au tour de ${u} — reviens un peu plus tard.${m.expires_at?' <br><span class="timer">'+left(m.expires_at)+'</span>':''}</p></div>`;
  return `<div class="wrap">
-   <button class="btn ghost small" onclick="go('matches')">← Matchs</button>
+   <button class="btn ghost small" onclick="go('matches')" style="display:inline-flex;align-items:center;gap:4px">${ic('back',13)} Matchs</button>
    <div class="center mt16"><div class="avatar" style="${avatarStyle(o.display_name)};width:80px;height:80px;font-size:30px;margin:0 auto">${initials(o.display_name)}</div>
      <h2 class="mt8">${u}</h2>
-     <div class="mt8"><span class="pill" style="background:${GOAL_BG}">🎯 veut grandir sur ${esc(pfLabel(mi.iFollowNet))}</span></div>
+     <div class="mt8"><span class="pill" style="background:${GOAL_BG}">${ic('target',11)} veut grandir sur ${esc(pfLabel(mi.iFollowNet))}</span></div>
      <div class="mt8">${lvBadge(o.trust_score)}</div></div>
    ${exchBox(o.display_name,mi.iFollowNet,mi.theyFollowMeNet)}
-   <div class="card mt16">${steps.map(s=>`<div class="step ${s.done?'done':''} ${s.cur?'cur':''}"><div class="dot">${s.done?'✓':'●'}</div><div><h4>${s.t}</h4><p>${s.p}</p></div></div>`).join('')}</div>
+   <div class="card mt16">${steps.map((s,i)=>`<div class="step ${s.done?'done':''} ${s.cur?'cur':''}"><div class="dot">${s.done?ic('check',14):(i+1)}</div><div><h4>${s.t}</h4><p>${s.p}</p></div></div>`).join('')}</div>
    <div class="mt16">${cta}</div>
    ${m.status==='completed'?`<button class="btn ghost mt8" onclick="reportUnfollow('${m.id}')">Il ne me suit plus 🚩</button>`:''}
    ${['completed','expired','reported'].includes(m.status)?'':`<button class="btn ghost mt8" onclick="reportPb('${m.id}')">Signaler un problème</button>`}
@@ -616,7 +737,7 @@ async function stepDo(mid,action){
  try{const{error}=await sb.rpc('fn_match_step',{p_match:mid,p_action:action});if(error)throw error;
   await refreshMatches();
   const m=S.matches.find(x=>x.id===mid);
-  if(m&&m.status==='completed'){await refreshProfile();toast('🎉 <b>Match complété !</b> +10 points de confiance.')}
+  if(m&&m.status==='completed'){await refreshProfile();confettiBurst(60);buzz([40,60,40]);toast('🎉 <b>Match complété !</b> +10 points de confiance.')}
   else toast('✔ C\'est noté — au tour de l\'autre (48h).');
   go('detail',mid);
  }catch(e){err(e)}
@@ -662,11 +783,11 @@ async function loadLeaderboard(){
 function myBadges(){
  const done=(S.matches||[]).filter(m=>m.status==='completed').length;
  const sc=S.me?S.me.trust_score:50;const inv=S.ref?S.ref.invited:0;const b=[];
- if(done>=1)b.push('🥇 Premier échange');
- if(done>=10)b.push('🔥 10 échanges');
- if(sc>=60)b.push('🛡 Fiable');
- if(sc>=80)b.push('👑 Élite');
- if(inv>=1)b.push('🎁 Parrain');
+ if(done>=1)b.push(ic('sparkles',12)+' Premier échange');
+ if(done>=10)b.push(ic('flame',12)+' 10 échanges');
+ if(sc>=60)b.push(ic('shield',12)+' Fiable');
+ if(sc>=80)b.push(ic('crown',12)+' Élite');
+ if(inv>=1)b.push(ic('gift',12)+' Parrain');
  return b;
 }
 function dailyGoal(){
@@ -675,8 +796,8 @@ function dailyGoal(){
 }
 function goalBar(){
  const g=dailyGoal();
- return `<div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-   <span style="font-size:20px">${g.done?'✅':'🎯'}</span>
+ return `<div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px 14px">
+   <span style="color:${g.done?'var(--ok)':'#f472b6'}">${g.done?ic('check',20):ic('target',20)}</span>
    <div style="flex:1"><b style="font-size:14px">Objectif du jour</b>
      <p class="sub" style="font-size:12px">${g.done?'Bravo, objectif atteint !':"Propose 3 échanges aujourd'hui"} · ${g.n}/${g.target}</p>
      <div style="height:6px;background:var(--panel2);border-radius:99px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${Math.round(g.n/g.target*100)}%;background:${GOAL_BG}"></div></div>
@@ -694,8 +815,8 @@ function vLeaderboard(){
    </div>`;
  }).join('');
  return `<div class="wrap">
-   <button class="btn ghost small" onclick="go('swipe')">← Retour</button>
-   <div class="center mt8"><div class="big">🏆</div><h1 style="font-size:22px" class="mt8">Classement de la semaine</h1>
+   <button class="btn ghost small" onclick="go('swipe')" style="display:inline-flex;align-items:center;gap:4px">${ic('back',13)} Retour</button>
+   <div class="center mt8">${illo('trophy')}<h1 style="font-size:22px" class="mt8">Classement de la semaine</h1>
    <p class="sub mt8">Les créateurs qui ont complété le plus d'échanges ces 7 derniers jours.</p></div>
    <div class="mt16">${rows||"<p class='sub center mt16'>Personne n'a encore complété d'échange cette semaine — sois le premier ! 🚀</p>"}</div>
  </div>`;
@@ -705,12 +826,12 @@ function vLeaderboard(){
 function gauge(sc){
  const C=Math.PI*80;
  return `<svg class="gauge" viewBox="0 0 200 115">
-   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs>
-   <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#262637" stroke-width="14" stroke-linecap="round"/>
-   <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="url(#g)" stroke-width="14" stroke-linecap="round"
-     stroke-dasharray="${(C*sc/100).toFixed(1)} ${C.toFixed(1)}"/>
-   <text x="100" y="88" text-anchor="middle" fill="#f2f2f8" font-size="34" font-weight="800">${sc}</text>
-   <text x="100" y="108" text-anchor="middle" fill="#9494ab" font-size="12">score de confiance</text>
+   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#ec4899"/></linearGradient></defs>
+   <path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="rgba(167,139,250,.14)" stroke-width="14" stroke-linecap="round"/>
+   <path id="gauge-arc" data-sc="${sc}" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="url(#g)" stroke-width="14" stroke-linecap="round"
+     stroke-dasharray="0 ${C.toFixed(1)}"/>
+   <text id="gauge-num" x="100" y="88" text-anchor="middle" fill="#f5f3fb" font-size="36" font-weight="700" font-family="Space Grotesk,sans-serif">0</text>
+   <text x="100" y="108" text-anchor="middle" fill="#a49ec2" font-size="12">score de confiance</text>
  </svg>`;
 }
 function evLabel(t){return {match_completed:'Match complété',fast_bonus:'Bonus rapidité (<24h)',match_expired_fault:'Match expiré (ta faute)',unfollow_confirmed:'Désabonnement confirmé',unfollow_reported:'Désabonnement signalé',report_abuse:'Signalement abusif',signup:'Inscription',referral_bonus:'Parrainage 🎁'}[t]||t}
@@ -721,20 +842,20 @@ function vProfile(){
  const rate=tot?Math.round(done/tot*100):100;
  return `<div class="wrap">
    <div class="row headrow"><h1>Ton profil</h1><div class="spacer"></div>
-     <button class="btn ghost small" onclick="previewMyProfile()" title="Aperçu de mon profil">👁</button>
-     <button class="btn ghost small" onclick="go('leaderboard')">🏆</button>
-     ${u.is_admin?'<button class="btn ghost small" onclick="go(\'admin\')">🛠</button>':''}
-     <button class="btn ghost small" onclick="go('edit')" title="Modifier mon profil">✏️</button>
-     <button class="btn ghost small" onclick="go('settings')">⚙️</button></div>
+     <button class="btn ghost small" onclick="previewMyProfile()" title="Aperçu de mon profil">${ic('eye',15)}</button>
+     <button class="btn ghost small" onclick="go('leaderboard')" title="Classement">${ic('trophy',15)}</button>
+     ${u.is_admin?`<button class="btn ghost small" onclick="go('admin')" title="Admin">${ic('wrench',15)}</button>`:''}
+     <button class="btn ghost small" onclick="go('edit')" title="Modifier mon profil">${ic('pencil',15)}</button>
+     <button class="btn ghost small" onclick="go('settings')" title="Réglages">${ic('gear',15)}</button></div>
    <div class="center mt16">
      ${av(u.display_name,84,32,u.avatar_url)}
      <h2 class="mt8">${esc(u.display_name)}</h2>
      <p class="sub">${esc(u.niche||'Créateur')}</p>
-     <div class="mt8"><span class="pill" style="background:${GOAL_BG};font-size:13px">🎯 Objectif : ${esc(pfLabel(u.target_platform))}</span></div>
+     <div class="mt8"><span class="pill" style="background:${GOAL_BG};font-size:13px">${ic('target',12)} Objectif : ${esc(pfLabel(u.target_platform))}</span></div>
      <div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap;margin-top:8px"><span class="sub">Présent sur :</span>${(S.accts||[]).map(a=>`<span class="pill" style="background:${a.verification_status==='verified'?'var(--panel2)':'var(--panel2)'};${a.platform===u.target_platform?'border:1px solid var(--violet)':''}">${esc(pfLabel(a.platform))}${a.verification_status==='verified'?'':' ⏳'}</span>`).join('')}</div>
    </div>
    ${gauge(u.trust_score)}
-   <div class="center"><span class="pill ${lc}" style="font-size:14px">🛡 Niveau ${lv}</span></div>
+   <div class="center"><span class="pill ${lc}" style="font-size:14px">${u.trust_score>=80?ic('crown',13):ic('shield',13)} Niveau ${lv}</span></div>
    ${myBadges().length?`<div class="row" style="gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px">${myBadges().map(b=>`<span class="pill" style="background:var(--panel2);font-size:12px">${b}</span>`).join('')}</div>`:''}
    ${gainsCard()}
    <div class="stats mt24">
@@ -746,10 +867,10 @@ function vProfile(){
    <div class="card mt16"><b>Historique du score</b><div class="mt8">
      ${S.events.length?S.events.map(e=>`<div class="ev"><span>${esc(evLabel(e.event_type))}</span><span class="${e.points_delta>=0?'delta-p':'delta-n'}">${e.points_delta>=0?'+':''}${e.points_delta}</span></div>`).join(''):'<p class="sub">Ton premier match complété apparaîtra ici (+10).</p>'}
    </div></div>
-   <div class="card mt16"><b>🎁 Invite des amis</b>
+   <div class="card mt16"><b>${ic('gift',14)} Invite des amis</b>
      <p class="sub mt8">Quand un ami s'inscrit avec ton lien, vous gagnez <b>+5 points de confiance</b> chacun.</p>
-     <div class="code" style="font-size:12px;word-break:break-all;margin-top:8px">${inviteUrl()}</div>
-     <div class="row mt8" style="gap:8px"><button class="btn small" onclick="shareInvite()">Partager 📲</button>
+     <div class="code" style="font-size:12px;word-break:break-all;margin-top:8px;letter-spacing:0">${inviteUrl()}</div>
+     <div class="row mt8" style="gap:8px"><button class="btn small" onclick="shareInvite()">Partager ${ic('share',13)}</button>
        <button class="btn ghost small" onclick="copyInvite()">Copier le lien</button></div>
      ${S.ref?`<p class="sub mt8">${S.ref.invited||0} ami(s) parrainé(s) · +${S.ref.points||0} points gagnés</p>`:''}
    </div>
@@ -759,14 +880,14 @@ function vProfile(){
 function vSettings(){
  const goals=myVerifiedPlatforms();
  return `<div class="wrap">
-   <button class="btn ghost small" onclick="go('profile')">← Profil</button>
+   <button class="btn ghost small" onclick="go('profile')" style="display:inline-flex;align-items:center;gap:4px">${ic('back',13)} Profil</button>
    <h2 class="mt16">Réglages</h2>
-   <div class="card mt16"><b>🎯 Mon objectif</b>
+   <div class="card mt16"><b>${ic('target',14)} Mon objectif</b>
      <p class="sub mt8">Le réseau où tu veux gagner des abonnés en ce moment (un seul à la fois). Change quand tu veux.</p>
      <div class="chips mt8">${goals.map(k=>`<span class="chip ${S.me.target_platform===k?'on':''}" style="${S.me.target_platform===k?'background:'+GOAL_BG+';border-color:transparent':''}" onclick="changeTarget('${k}')">${pfLabel(k)}</span>`).join('')||'<span class="sub">Vérifie un réseau pour choisir ton objectif.</span>'}</div>
    </div>
    <div class="card mt16"><b>Tes réseaux connectés</b>
-     ${(S.accts||[]).map(a=>`<div class="row mt8" style="gap:8px"><span class="pill" style="background:${a.verification_status==='verified'?'var(--grad)':'var(--panel2)'}">${esc(pfLabel(a.platform))}</span><span class="sub">@${esc(a.username)} · ${a.verification_status==='verified'?'vérifié ✔':'en attente ⏳'}${a.platform===S.me.target_platform?' · 🎯 objectif':''}</span></div>`).join('')}
+     ${(S.accts||[]).map(a=>`<div class="row mt8" style="gap:8px"><span class="pill" style="background:${a.verification_status==='verified'?'var(--grad)':'var(--panel2)'}">${esc(pfLabel(a.platform))}</span><span class="sub">@${esc(a.username)} · ${a.verification_status==='verified'?'vérifié ✔':'en attente ⏳'}${a.platform===S.me.target_platform?' · '+ic('target',11,'color:#f472b6')+' objectif':''}</span></div>`).join('')}
      <p class="sub mt8" style="font-size:12px">Pour ajouter un réseau supplémentaire, écris-nous — bientôt directement ici.</p>
    </div>
    ${notifSettingsCard()}
@@ -812,7 +933,7 @@ function editNetRow(a){
  const v=a.verification_status==='verified';
  return `<div class="card mt8" style="background:var(--panel2)">
    <div class="row"><b>${esc(pfLabel(a.platform))}</b><div class="spacer"></div>
-     <span class="sub" style="font-size:12px">${v?'vérifié ✔':'à vérifier ⏳'}${a.platform===S.me.target_platform?' · 🎯 objectif':''}</span></div>
+     <span class="sub" style="font-size:12px">${v?'vérifié ✔':'à vérifier ⏳'}${a.platform===S.me.target_platform?' · '+ic('target',11,'color:#f472b6')+' objectif':''}</span></div>
    <div class="field mt8"><label>Pseudo ${esc(pfLabel(a.platform))}</label><input id="e-user-${a.id}" value="${esc(a.username)}" oninput="updEditPreview('${a.id}','${a.platform}')"></div>
    <div id="eprev-${a.id}" class="sub" style="font-size:12px;margin-top:2px">→ ${esc(pfUrl(a.platform,a.username).replace(/^https?:\/\//,''))}</div>
    <div class="field mt8"><label>${esc(pfFollow(a.platform))} (environ)</label><input id="e-fol-${a.id}" type="number" min="0" value="${a.follower_count||0}"></div>
@@ -824,12 +945,12 @@ function vEdit(){
  const connected=accts.map(a=>a.platform);
  const avail=PLATFORM_LIST.filter(p=>!connected.includes(p[0]));
  return `<div class="wrap">
-   <button class="btn ghost small" onclick="go('profile')">← Profil</button>
+   <button class="btn ghost small" onclick="go('profile')" style="display:inline-flex;align-items:center;gap:4px">${ic('back',13)} Profil</button>
    <h2 class="mt16">Modifier mon profil</h2>
    <div class="card mt16"><b>Photo de profil</b>
      <div class="center mt8">${av(me.display_name,88,34,me.avatar_url)}</div>
      <div class="center mt8" style="display:flex;gap:8px;justify-content:center">
-       <button class="btn ghost small" onclick="$('avatar-file').click()">📷 ${me.avatar_url?'Changer':'Ajouter'} la photo</button>
+       <button class="btn ghost small" onclick="$('avatar-file').click()">${ic('camera',14)} ${me.avatar_url?'Changer':'Ajouter'} la photo</button>
        ${me.avatar_url?`<button class="btn ghost small" onclick="removeAvatar()" style="color:#f87171">Retirer</button>`:''}
      </div>
      <input id="avatar-file" type="file" accept="image/*" style="display:none" onchange="uploadAvatar(this.files[0])">
@@ -914,8 +1035,8 @@ function vAdmin(){
    <button class="btn ghost small" onclick="adminReport('${r.id}',false)">Rejeter (−5 au signaleur)</button>
  </div>`).join('')||'<p class="sub">Aucun signalement ouvert 🎉</p>';
  return `<div class="wrap">
-   <button class="btn ghost small" onclick="go('swipe')">← Retour</button>
-   <h2 class="mt16">🛠 Admin</h2>
+   <button class="btn ghost small" onclick="go('swipe')" style="display:inline-flex;align-items:center;gap:4px">${ic('back',13)} Retour</button>
+   <h2 class="mt16">${ic('wrench',17)} Admin</h2>
    <h2 class="mt16" style="font-size:15px;color:var(--muted)">Vérifications de comptes</h2>${pend}
    <h2 class="mt24" style="font-size:15px;color:var(--muted)">Signalements ouverts</h2>${reps}
  </div>`;
