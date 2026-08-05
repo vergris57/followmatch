@@ -387,6 +387,12 @@ async function route(){
  try{await loadMe()}catch(e){err(e);go('landing');return}
  if(!S.me.display_name){S.ob=1;go('onboarding');return}
  if(!S.accts||S.accts.length===0){S.ob=2;go('onboarding');return}
+ /* v18c — personne ne doit rester invisible faute d'objectif :
+    s'il n'y a qu'un seul réseau déclaré, il n'y a aucun choix à faire → on le définit tout seul */
+ if(!S.me.target_platform&&myPlatforms().length===1){
+   try{const{error}=await sb.rpc('fn_set_target',{p_platform:myPlatforms()[0]});
+       if(!error)S.me.target_platform=myPlatforms()[0];}catch(e){}
+ }
  if(!S.me.target_platform){S.ob=3;S._target=undefined;go('onboarding');return}   // pas encore d'objectif choisi
  await refreshMatches();
  ensurePushSubscribed();
