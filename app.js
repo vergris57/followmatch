@@ -836,7 +836,7 @@ function gauge(sc){
    <text x="100" y="108" text-anchor="middle" fill="#a49ec2" font-size="12">score de confiance</text>
  </svg>`;
 }
-function evLabel(t){return {match_completed:'Match complété',fast_bonus:'Bonus rapidité (<24h)',match_expired_fault:'Match expiré (ta faute)',unfollow_confirmed:'Désabonnement confirmé',unfollow_reported:'Désabonnement signalé',report_abuse:'Signalement abusif',signup:'Inscription',referral_bonus:'Parrainage 🎁'}[t]||t}
+function evLabel(t){return {match_completed:'Match complété',fast_bonus:'Bonus rapidité (<24h)',match_expired_fault:'Match expiré (ta faute)',unfollow_confirmed:'Désabonnement confirmé',unfollow_reported:'Désabonnement signalé',report_abuse:'Signalement abusif',signup:'Inscription',referral_bonus:'Parrainage 🎁',unfollow_refunded:'Remboursement (signalement rejeté)'}[t]||t}
 function vProfile(){
  const u=S.me,[lv,lc]=level(u.trust_score);
  const done=S.matches.filter(m=>m.status==='completed').length;
