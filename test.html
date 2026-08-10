@@ -277,10 +277,33 @@
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:#fff;border-radius:50%;animation:sp 1s linear infinite;vertical-align:middle}
   @keyframes sp{to{transform:rotate(360deg)}}
 
+  /* ===== animations premium (rendu « studio, des années de boulot ») ===== */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}}
+  @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes arrPR{0%,100%{opacity:.4;transform:translateX(-2px)}50%{opacity:1;transform:translateX(3px)}}
+  @keyframes arrPL{0%,100%{opacity:.4;transform:translateX(2px)}50%{opacity:1;transform:translateX(-3px)}}
+  @keyframes sheen{0%{background-position:-140% 0}55%,100%{background-position:150% 0}}
+  @keyframes navpop{0%{transform:translateY(-1px) scale(.85)}50%{transform:translateY(-3px) scale(1.14)}100%{transform:translateY(-1px) scale(1)}}
+  .mitem{animation:fadeUp .44s cubic-bezier(.2,.8,.2,1) both}
+  .mitem:nth-child(1){animation-delay:.03s}.mitem:nth-child(2){animation-delay:.09s}.mitem:nth-child(3){animation-delay:.15s}.mitem:nth-child(4){animation-delay:.21s}.mitem:nth-child(5){animation-delay:.27s}.mitem:nth-child(n+6){animation-delay:.31s}
+  .stat{animation:fadeUp .46s cubic-bezier(.2,.8,.2,1) both}
+  .stat:nth-child(2){animation-delay:.07s}.stat:nth-child(3){animation-delay:.13s}.stat:nth-child(4){animation-delay:.19s}
+  .step{animation:fadeUp .44s cubic-bezier(.2,.8,.2,1) both}
+  .step:nth-child(2){animation-delay:.08s}.step:nth-child(3){animation-delay:.15s}.step:nth-child(4){animation-delay:.22s}
+  .steps-lite .s{animation:fadeUp .5s cubic-bezier(.2,.8,.2,1) both}
+  .steps-lite .s:nth-child(2){animation-delay:.1s}.steps-lite .s:nth-child(3){animation-delay:.2s}
+  .xav{animation:floatY 4.2s ease-in-out infinite}
+  .xchg .xav:last-child{animation-delay:.7s}
+  .xsw .a:first-child{animation:arrPR 2s ease-in-out infinite}
+  .xsw .a:last-child{animation:arrPL 2s ease-in-out infinite;animation-delay:1s}
+  .btn:not(.ghost){position:relative;overflow:hidden}
+  .btn:not(.ghost)::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 34%,rgba(255,255,255,.26) 47%,transparent 60%);background-size:230% 100%;background-position:-140% 0;animation:sheen 1.9s ease-out .4s 1}
+  #nav button:active .ico{transform:scale(.9)}
+  #nav button.on .ico{animation:navpop .45s cubic-bezier(.3,1.4,.5,1)}
+
   @media (prefers-reduced-motion: reduce){
-    #phone::before,#phone::after,#splash .mark{animation:none}
-    .viewin{animation:none}
-    *{transition-duration:.01ms!important}
+    *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+    #phone::before,#phone::after{animation:none!important}
   }
 
   /* contenu de secours : visible sans JavaScript, remplacé par l'app sinon */
