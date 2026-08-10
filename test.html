@@ -1290,7 +1290,7 @@ function vOnboarding(){
  const bar=`<div class="obbar"><i class="${S.ob>=1?'on':''}"></i><i class="${S.ob>=2?'on':''}"></i><i class="${S.ob>=3?'on':''}"></i></div>`;
  if(S.ob===1)return `<div class="wrap">${bar}
    <h2>Bienvenue 👋</h2><p class="sub mb16">Comment veux-tu apparaître ?</p>
-   <div class="field"><label>Ton pseudo</label><input id="f-pseudo" maxlength="30" placeholder="ex. Jalal"></div>
+   <div class="field"><label>Ton pseudo</label><input id="f-pseudo" maxlength="30" placeholder="ex. ton nom de créateur"></div>
    <button class="btn mt8" onclick="obSaveName()">Continuer</button></div>`;
  if(S.ob===2){
    S._nets=S._nets||{};
@@ -1874,7 +1874,7 @@ window.isInstalled = function(){ return true; };
     if(document.getElementById('fm-test-badge')) return;
     var b=document.createElement('div'); b.id='fm-test-badge';
     b.textContent='MAQUETTE DE TEST';
-    b.style.cssText='position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#f59e0b,#ec4899);color:#fff;font:700 10px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;padding:5px 12px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:none;opacity:.92';
+    b.style.cssText='position:fixed;top:calc(env(safe-area-inset-top, 12px) + 4px);right:10px;z-index:99999;background:rgba(10,8,16,.55);color:#fbbf24;font:700 8.5px/1 Inter,system-ui,sans-serif;letter-spacing:.16em;padding:4px 9px;border:1px solid rgba(251,191,36,.45);border-radius:99px;pointer-events:none;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)';
     document.body.appendChild(b);
   }
   if(document.readyState!=='loading') badge(); else document.addEventListener('DOMContentLoaded', badge);
