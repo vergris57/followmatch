@@ -149,6 +149,18 @@
   .steps3{display:flex;flex-direction:column;gap:12px;margin:26px 0;text-align:left}
   .steps3 .card{display:flex;gap:14px;align-items:center}
   .steps3 .num{width:40px;height:40px;border-radius:13px;background:var(--grad-hot);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--fd);flex-shrink:0;box-shadow:0 4px 14px rgba(192,38,211,.4)}
+  /* landing premium */
+  .lbadge{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--fb);color:#e9c9ff;background:rgba(139,92,246,.14);border:1px solid rgba(167,139,250,.3);padding:7px 13px;border-radius:99px}
+  .lbadge svg{color:#d8b4fe}
+  .xchg{display:flex;align-items:center;justify-content:center;gap:16px;margin:22px 0 2px}
+  .xav{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 25px/1 var(--fd);color:#fff;border:2px solid rgba(255,255,255,.14);box-shadow:0 10px 26px -6px rgba(139,92,246,.6),inset 0 2px 0 rgba(255,255,255,.25)}
+  .xsw{display:flex;flex-direction:column;gap:6px}
+  .xsw .a{display:flex}
+  .steps-lite{display:flex;flex-direction:column;gap:10px;text-align:left}
+  .steps-lite .s{display:flex;gap:12px;align-items:center;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:13px 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.07)}
+  .steps-lite .si{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(139,92,246,.16);color:#c4b5fd}
+  .steps-lite .s:nth-child(2) .si{background:rgba(236,72,153,.16);color:#f9a8d4}
+  .steps-lite .s:nth-child(3) .si{background:rgba(52,211,153,.14);color:#5be6b3}
 
   /* onboarding */
   .obbar{display:flex;gap:6px;margin-bottom:22px}
@@ -1268,10 +1280,13 @@ function vLanding(){
      <button class="btn" id="a-go" ${CONFIGURED?'':'disabled'} onclick="${mode==='signup'?'doSignup()':'doLogin()'}">${mode==='signup'?'Créer mon compte':'Se connecter'}</button>
      ${mode==='signup'?'<p class="sub center mt8" style="font-size:11.5px">En continuant tu acceptes les CGU. 100 % gratuit.</p>':''}`;
  return `${setup}<div class="hero">
-   ${logoMark(64)}
-   <div class="logo" style="font-size:30px;display:block;margin-top:10px">FollowsMatch</div>
-   <h1>Gagne des abonnés<br><em>là où tu en as besoin</em></h1>
-   <p class="tagline mt8">Swipe · Match · Grandis</p>
+   <div class="lbadge">${ic('sparkles',13)} Échange vérifié · 100 % gratuit</div>
+   <div class="mt8">${logoMark(56)}</div>
+   <div class="logo" style="font-size:28px;display:block;margin-top:6px">FollowsMatch</div>
+   <h1 style="margin-top:12px">Gagne des abonnés<br><em>là où tu en as besoin</em></h1>
+   <p class="sub" style="max-width:332px;margin:11px auto 0;font-size:14.5px">Un follow contre un follow, entre vrais créateurs. Zéro bot, zéro faux compte.</p>
+   <div class="xchg"><div class="xav" style="${avatarStyle('Léa')}">L</div><div class="xsw"><span class="a" style="color:#f9a8d4">${ic('arrR',14)}</span><span class="a" style="color:#c4b5fd">${ic('arrL',14)}</span></div><div class="xav" style="${avatarStyle('Max')}">M</div></div>
+   <p class="sub center" style="font-size:12px;margin-top:4px">Tu le suis sur son réseau · il te suit sur le tien</p>
    <div class="authbox mt24">
      <button class="btn ghost" ${CONFIGURED?'':'disabled'} onclick="loginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%">${G} Continuer avec Google</button>
      ${mode?`<div class="center sub" style="margin:12px 0 10px;font-size:12px;opacity:.7">— ${mode==='signup'?'ou crée ton compte avec ton e-mail':'ou connecte-toi avec ton e-mail'} —</div><div class="viewin">${fields}</div>`
@@ -1280,10 +1295,10 @@ function vLanding(){
        ?`Nouveau ici ? <span class="link" onclick="${keep}S._authMode='signup';go('landing')">Crée ton compte</span>`
        :`Déjà un compte ? <span class="link" onclick="${keep}S._authMode='login';go('landing')">Se connecter</span>`}</p>
    </div>
-   <div class="card mt24" style="text-align:left;padding:13px 16px">
-     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">1</div><div style="font-size:13.5px;line-height:1.4"><b>Ton objectif</b> — <span class="sub" style="font-size:13px">choisis LE réseau où tu veux gagner des abonnés.</span></div></div>
-     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">2</div><div style="font-size:13.5px;line-height:1.4"><b>Match</b> — <span class="sub" style="font-size:13px">l'autre te suit là ; toi, tu le suis sur le sien.</span></div></div>
-     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">3</div><div style="font-size:13.5px;line-height:1.4"><b>Grandis</b> — <span class="sub" style="font-size:13px">follow mutuel vérifié en 4 étapes. Zéro bot.</span></div></div>
+   <div class="steps-lite mt24">
+     <div class="s"><div class="si">${ic('target',18)}</div><div style="font-size:13.5px;line-height:1.4"><b>Ton objectif</b> — <span class="sub" style="font-size:13px">choisis LE réseau où tu veux gagner des abonnés.</span></div></div>
+     <div class="s"><div class="si">${ic('heart',18)}</div><div style="font-size:13.5px;line-height:1.4"><b>Match</b> — <span class="sub" style="font-size:13px">l'autre te suit là ; toi, tu le suis sur le sien.</span></div></div>
+     <div class="s"><div class="si">${ic('sparkles',18)}</div><div style="font-size:13.5px;line-height:1.4"><b>Grandis</b> — <span class="sub" style="font-size:13px">follow mutuel vérifié en 4 étapes. Zéro bot.</span></div></div>
    </div>
    <div class="netchips" style="margin-top:16px"><span>100 % gratuit</span><span>Zéro bot</span><span>TikTok · Insta · Snap · X</span></div>
  </div>`;
