@@ -120,10 +120,10 @@ function matchInfo(m){
  return {A,other,netA,netB,iFollowNet,theyFollowMeNet,iFollowAcct};
 }
 function exchBox(otherName,iFollowNet,myNet){
- return `<div style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.35);border-radius:14px;padding:12px;margin-top:12px">
-   <div class="center sub" style="color:#c4b5fd;font-weight:700;margin-bottom:4px">L'échange</div>
-   <div style="font-size:13.5px;padding:3px 0"><span style="color:#a78bfa">${ic('arrR',13)}</span> Tu suis <b>${esc(otherName)}</b> sur <b>${esc(pfLabel(iFollowNet))}</b></div>
-   <div style="font-size:13.5px;padding:3px 0"><span style="color:#f472b6">${ic('arrL',13)}</span> <b>${esc(otherName)}</b> te suit sur <b>${esc(pfLabel(myNet))}</b></div>
+ return `<div style="margin-top:14px;border-radius:16px;padding:14px 14px 12px;background:linear-gradient(180deg,rgba(139,92,246,.16),rgba(139,92,246,.05));border:1px solid rgba(167,139,250,.24)">
+   <div class="center" style="color:#cbb6ff;font-weight:700;font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">L'échange</div>
+   <div style="display:flex;align-items:center;gap:9px;font-size:13.5px;padding:4px 0;color:#efeafc"><span style="width:22px;height:22px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:rgba(139,92,246,.28);color:#c4b5fd;flex-shrink:0">${ic('arrR',13)}</span> <span>Tu suis <b>${esc(otherName)}</b> sur <b>${esc(pfLabel(iFollowNet))}</b></span></div>
+   <div style="display:flex;align-items:center;gap:9px;font-size:13.5px;padding:4px 0;color:#efeafc"><span style="width:22px;height:22px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:rgba(236,72,153,.24);color:#f9a8d4;flex-shrink:0">${ic('arrL',13)}</span> <span><b>${esc(otherName)}</b> te suit sur <b>${esc(pfLabel(myNet))}</b></span></div>
  </div>`;
 }
 
@@ -167,15 +167,14 @@ function vInstallGate(){
 }
 /* avatars colorés (déterministes selon le pseudo) */
 function nameHue(n){let h=7;const s=(n||'?');for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h}
-function avatarStyle(n){const h=nameHue(n);return `background:linear-gradient(135deg,hsl(${h},68%,58%),hsl(${(h+42)%360},68%,46%))`}
+function avatarStyle(n){const h=nameHue(n);return `background:linear-gradient(150deg,hsl(${h},58%,55%),hsl(${(h+40)%360},64%,41%))`}
 function av(n,px,fs,url){px=px||44;fs=fs||Math.round(px*0.42);if(url)return `<div class="avatar" style="width:${px}px;height:${px}px;background-image:url('${esc(url)}');background-size:cover;background-position:center"></div>`;return `<div class="avatar" style="${avatarStyle(n)};width:${px}px;height:${px}px;font-size:${fs}px">${initials(n)}</div>`}
 /* gains (abonnés gagnés) — calculé côté app à partir des matchs complétés */
 function myGains(){const c=(S.matches||[]).filter(m=>m.status==='completed');const week=c.filter(m=>m.completed_at&&(Date.now()-new Date(m.completed_at))<7*864e5).length;return {total:c.length,week}}
-function gainsCard(){const g=myGains();return `<div class="card mt16" style="text-align:center;background:linear-gradient(135deg,rgba(139,92,246,.16),rgba(236,72,153,.16));border-color:rgba(139,92,246,.5)">
-   <p class="sub" style="font-size:12.5px">Abonnés gagnés grâce à FollowsMatch</p>
-   <div style="font-size:46px;font-weight:800;line-height:1.1;background:${GOAL_BG};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">+${g.total}</div>
-   <p class="sub" style="font-size:12.5px">${g.week>0?'dont +'+g.week+' cette semaine 🔥':'complète un échange pour voir ce chiffre grimper'}</p>
-   <button class="btn small mt8" onclick="shareGains()">Partager mes gains ${ic('share',13)}</button>
+function gainsCard(){const g=myGains();return `<div class="card mt16" style="display:flex;align-items:center;gap:13px;background:linear-gradient(135deg,rgba(139,92,246,.16),rgba(236,72,153,.16));border-color:rgba(139,92,246,.5)">
+   <div style="font-size:36px;font-weight:800;line-height:1;background:${GOAL_BG};-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">+${g.total}</div>
+   <div style="flex:1;text-align:left;min-width:0"><b style="font-size:14px">Abonnés gagnés</b><p class="sub" style="font-size:11.5px">${g.week>0?'dont +'+g.week+' cette semaine 🔥':'grâce à FollowsMatch'}</p></div>
+   <button class="btn small" onclick="shareGains()" title="Partager" style="flex-shrink:0">${ic('share',15)} Partager</button>
  </div>`}
 async function shareGains(){const g=myGains();const url=inviteUrl();const text=`J'ai gagné ${g.total} abonné${g.total>1?'s':''} sur FollowsMatch 🚀 Un follow contre un follow, vérifié. Rejoins-moi :`;try{if(navigator.share){await navigator.share({title:'FollowsMatch',text,url});return}}catch(e){return}copyInvite()}
 /* écran « pile vide » — anti démarrage à froid */
@@ -202,7 +201,7 @@ function previewMyProfile(){
    <div class="pcard" style="position:relative;margin:10px 0 0;transform:none">
      <div class="center">${av(u.display_name,92,34,u.avatar_url)}
        <h2>${esc(u.display_name)}</h2>
-       <div class="mt8"><span class="pill" style="background:${GOAL_BG}">${ic('target',11)} veut grandir sur ${esc(pfLabel(myT))}</span></div>
+       <div class="mt8"><span class="pill goal">${ic('target',11)} veut grandir sur ${esc(pfLabel(myT))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
          <span class="pill" style="background:var(--panel2)">${esc(u.niche||'Créateur')}</span>
          ${acc?`<span class="pill" style="background:var(--panel2)">${fmtFollowers(acc.follower_count)} ${pfFollow(myT)}</span>`:''}
@@ -464,10 +463,13 @@ function vLanding(){
      <button class="btn" id="a-go" ${CONFIGURED?'':'disabled'} onclick="${mode==='signup'?'doSignup()':'doLogin()'}">${mode==='signup'?'Créer mon compte':'Se connecter'}</button>
      ${mode==='signup'?'<p class="sub center mt8" style="font-size:11.5px">En continuant tu acceptes les CGU. 100 % gratuit.</p>':''}`;
  return `${setup}<div class="hero">
-   ${logoMark(64)}
-   <div class="logo" style="font-size:30px;display:block;margin-top:10px">FollowsMatch</div>
-   <h1>Gagne des abonnés<br><em>là où tu en as besoin</em></h1>
-   <p class="tagline mt8">Swipe · Match · Grandis</p>
+   <div class="lbadge">${ic('sparkles',13)} Échange vérifié · 100 % gratuit</div>
+   <div class="mt8">${logoMark(56)}</div>
+   <div class="logo" style="font-size:28px;display:block;margin-top:6px">FollowsMatch</div>
+   <h1 style="margin-top:12px">Gagne des abonnés<br><em>là où tu en as besoin</em></h1>
+   <p class="sub" style="max-width:332px;margin:11px auto 0;font-size:14.5px">Un follow contre un follow, entre vrais créateurs. Zéro bot, zéro faux compte.</p>
+   <div class="xchg"><div class="xav" style="${avatarStyle('Léa')}">L</div><div class="xsw"><span class="a" style="color:#f9a8d4">${ic('arrR',14)}</span><span class="a" style="color:#c4b5fd">${ic('arrL',14)}</span></div><div class="xav" style="${avatarStyle('Max')}">M</div></div>
+   <p class="sub center" style="font-size:12px;margin-top:4px">Tu le suis sur son réseau · il te suit sur le tien</p>
    <div class="authbox mt24">
      <button class="btn ghost" ${CONFIGURED?'':'disabled'} onclick="loginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%">${G} Continuer avec Google</button>
      ${mode?`<div class="center sub" style="margin:12px 0 10px;font-size:12px;opacity:.7">— ${mode==='signup'?'ou crée ton compte avec ton e-mail':'ou connecte-toi avec ton e-mail'} —</div><div class="viewin">${fields}</div>`
@@ -476,10 +478,10 @@ function vLanding(){
        ?`Nouveau ici ? <span class="link" onclick="${keep}S._authMode='signup';go('landing')">Crée ton compte</span>`
        :`Déjà un compte ? <span class="link" onclick="${keep}S._authMode='login';go('landing')">Se connecter</span>`}</p>
    </div>
-   <div class="card mt24" style="text-align:left;padding:13px 16px">
-     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">1</div><div style="font-size:13.5px;line-height:1.4"><b>Ton objectif</b> — <span class="sub" style="font-size:13px">choisis LE réseau où tu veux gagner des abonnés.</span></div></div>
-     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">2</div><div style="font-size:13.5px;line-height:1.4"><b>Match</b> — <span class="sub" style="font-size:13px">l'autre te suit là ; toi, tu le suis sur le sien.</span></div></div>
-     <div class="row" style="padding:7px 0"><div class="num" style="width:28px;height:28px;border-radius:9px;font-size:14px">3</div><div style="font-size:13.5px;line-height:1.4"><b>Grandis</b> — <span class="sub" style="font-size:13px">follow mutuel vérifié en 4 étapes. Zéro bot.</span></div></div>
+   <div class="steps-lite mt24">
+     <div class="s"><div class="si">${ic('target',18)}</div><div style="font-size:13.5px;line-height:1.4"><b>Ton objectif</b> — <span class="sub" style="font-size:13px">choisis LE réseau où tu veux gagner des abonnés.</span></div></div>
+     <div class="s"><div class="si">${ic('heart',18)}</div><div style="font-size:13.5px;line-height:1.4"><b>Match</b> — <span class="sub" style="font-size:13px">l'autre te suit là ; toi, tu le suis sur le sien.</span></div></div>
+     <div class="s"><div class="si">${ic('sparkles',18)}</div><div style="font-size:13.5px;line-height:1.4"><b>Grandis</b> — <span class="sub" style="font-size:13px">follow mutuel vérifié en 4 étapes. Zéro bot.</span></div></div>
    </div>
    <div class="netchips" style="margin-top:16px"><span>100 % gratuit</span><span>Zéro bot</span><span>TikTok · Insta · Snap · X</span></div>
  </div>`;
@@ -489,7 +491,7 @@ function vOnboarding(){
  const bar=`<div class="obbar"><i class="${S.ob>=1?'on':''}"></i><i class="${S.ob>=2?'on':''}"></i><i class="${S.ob>=3?'on':''}"></i></div>`;
  if(S.ob===1)return `<div class="wrap">${bar}
    <h2>Bienvenue 👋</h2><p class="sub mb16">Comment veux-tu apparaître ?</p>
-   <div class="field"><label>Ton pseudo</label><input id="f-pseudo" maxlength="30" placeholder="ex. Jalal"></div>
+   <div class="field"><label>Ton pseudo</label><input id="f-pseudo" maxlength="30" placeholder="ex. ton nom de créateur"></div>
    <button class="btn mt8" onclick="obSaveName()">Continuer</button></div>`;
  if(S.ob===2){
    S._nets=S._nets||{};
@@ -579,7 +581,7 @@ function vSwipe(){
      <div class="stamp yes">SUIVRE</div><div class="stamp no">PASSER</div>
      <div class="center">${av(p.display_name,92,34,p.avatar_url)}
        <h2>${esc(p.display_name)}</h2>
-       <div class="mt8"><span class="pill" style="background:${GOAL_BG}">${ic('target',11)} veut grandir sur ${esc(pfLabel(goal))}</span></div>
+       <div class="mt8"><span class="pill goal">${ic('target',11)} veut grandir sur ${esc(pfLabel(goal))}</span></div>
        <div class="row mt8" style="justify-content:center;gap:8px;flex-wrap:wrap">
          <span class="pill" style="background:var(--panel2)">${esc(p.niche||'Créateur')}</span>
          <span class="pill" style="background:var(--panel2)">${fmtFollowers(p.target_follower_count)} ${pfFollow(goal)}</span>
@@ -594,7 +596,7 @@ function vSwipe(){
    </div>`;
    }).reverse().join('');
  return `<div class="wrap">
-   <div class="row">${brandRow(24,17)}<div class="spacer"></div><button class="btn ghost small" onclick="go('leaderboard')" title="Classement">${ic('trophy',15)}</button>${admin}<span class="pill" style="background:${GOAL_BG}">${ic('target',11)} ${esc(pfLabel(myT))}</span></div>
+   <div class="row">${brandRow(24,17)}<div class="spacer"></div><button class="btn ghost small" onclick="go('leaderboard')" title="Classement">${ic('trophy',15)}</button>${admin}<span class="pill goal">${ic('target',11)} ${esc(pfLabel(myT))}</span></div>
    ${notifBanner()}${goalBar()}
    <div class="deck">${cards}</div>
    ${d.length?`<div class="actions">
@@ -667,7 +669,7 @@ function skMatches(){
 function vMatches(){
  const item=m=>{const[c,l]=stLabel(m);const o=otherOf(m);const mi=matchInfo(m);return `<div class="mitem" onclick="go('detail','${m.id}')">
    ${av(o.display_name,44,18,o.avatar_url)}
-   <div><b>${esc(o.display_name)}</b> <span class="pill" style="background:${GOAL_BG};font-size:10px;padding:2px 8px">${ic('target',10)} ${esc(pfLabel(mi.iFollowNet))}</span><div class="st ${c}">${l}</div></div>
+   <div><b>${esc(o.display_name)}</b> <span class="pill goal" style="font-size:10px;padding:2px 8px">${ic('target',10)} ${esc(pfLabel(mi.iFollowNet))}</span><div class="st ${c}">${l}</div></div>
    <div class="spacer"></div>${m.expires_at&&!['completed','expired','reported'].includes(m.status)?`<span class="timer">${ic('clock',11)} ${left(m.expires_at)}</span>`:''}
  </div>`};
  const act=S.matches.filter(needsMe);
@@ -724,7 +726,7 @@ function vDetail(){
    <button class="btn ghost small" onclick="go('matches')" style="display:inline-flex;align-items:center;gap:4px">${ic('back',13)} Matchs</button>
    <div class="center mt16">${av(o.display_name,80,30,o.avatar_url)}
      <h2 class="mt8">${u}</h2>
-     <div class="mt8"><span class="pill" style="background:${GOAL_BG}">${ic('target',11)} veut grandir sur ${esc(pfLabel(mi.iFollowNet))}</span></div>
+     <div class="mt8"><span class="pill goal">${ic('target',11)} veut grandir sur ${esc(pfLabel(mi.iFollowNet))}</span></div>
      <div class="mt8">${lvBadge(o.trust_score)}</div></div>
    ${exchBox(o.display_name,mi.iFollowNet,mi.theyFollowMeNet)}
    <div class="card mt16">${steps.map((s,i)=>`<div class="step ${s.done?'done':''} ${s.cur?'cur':''}"><div class="dot">${s.done?ic('check',14):(i+1)}</div><div><h4>${s.t}</h4><p>${s.p}</p></div></div>`).join('')}</div>
@@ -847,11 +849,11 @@ function vProfile(){
      ${u.is_admin?`<button class="btn ghost small" onclick="go('admin')" title="Admin">${ic('wrench',15)}</button>`:''}
      <button class="btn ghost small" onclick="go('edit')" title="Modifier mon profil">${ic('pencil',15)}</button>
      <button class="btn ghost small" onclick="go('settings')" title="Réglages">${ic('gear',15)}</button></div>
-   <div class="center mt16">
-     ${av(u.display_name,84,32,u.avatar_url)}
+   <div class="center mt8">
+     ${av(u.display_name,74,28,u.avatar_url)}
      <h2 class="mt8">${esc(u.display_name)}</h2>
      <p class="sub">${esc(u.niche||'Créateur')}</p>
-     <div class="mt8"><span class="pill" style="background:${GOAL_BG};font-size:13px">${ic('target',12)} Objectif : ${esc(pfLabel(u.target_platform))}</span></div>
+     <div class="mt8"><span class="pill goal" style="font-size:13px">${ic('target',12)} Objectif : ${esc(pfLabel(u.target_platform))}</span></div>
      <div class="row" style="justify-content:center;gap:6px;flex-wrap:wrap;margin-top:8px"><span class="sub">Présent sur :</span>${(S.accts||[]).map(a=>`<span class="pill" style="background:var(--panel2);${a.platform===u.target_platform?'border:1px solid var(--violet)':''}">${esc(pfLabel(a.platform))}</span>`).join('')}</div>
    </div>
    ${gauge(u.trust_score)}
