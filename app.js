@@ -361,7 +361,8 @@ async function refreshAdmin(){
  try{
   const{data:pend}=await sb.from('social_accounts').select('*, profiles(display_name)').eq('verification_status','pending').order('created_at');
   const{data:reps}=await sb.from('reports').select('*').eq('status','open').order('created_at');
-  S.admin={pend:pend||[],reps:reps||[]};
+  let stats=null; try{const sr=await sb.rpc('fn_admin_stats'); if(sr&&sr.data)stats=sr.data;}catch(_){}
+  S.admin={pend:pend||[],reps:reps||[],stats};
  }catch(e){err(e)}
 }
 
@@ -1031,6 +1032,29 @@ async function saveEdit(){
 }
 
 /* ---------- admin ---------- */
+function adminDash(s){
+ if(!s)return `<div class="card mt16"><p class="sub">📊 Statistiques momentanément indisponibles — réessaie dans un instant.</p></div>`;
+ const u=s.users||{},a=s.accounts||{},m=s.matches||{},t=s.trust||{},r=s.reports||{},rf=s.referrals||{},tg=s.targets||{};
+ const k=(v,l)=>`<div class="dk"><b>${v??0}</b><span>${l}</span></div>`;
+ const grid=(...items)=>`<div class="dgrid mt8">${items.join('')}</div>`;
+ const H=(icn,txt)=>`<h2 class="sect mt24">${ic(icn,13)} ${txt}</h2>`;
+ const chart=s.signups_14d||[];const mx=Math.max(1,...chart.map(x=>x.n||0));
+ const bars=chart.map(x=>`<div class="dbar" title="${x.d} : ${x.n} inscription(s)"><i style="height:${Math.max(4,Math.round((x.n||0)/mx*100))}%"></i><em>${(x.d||'').slice(8)}</em></div>`).join('');
+ const tops=(s.top_users||[]).map((x,i)=>`<div class="mitem" style="padding:8px 12px">
+   <div style="width:22px;text-align:center;font-size:14px">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'<span class="sub">'+(i+1)+'</span>'}</div>
+   ${av(x.name,32,13)}<div style="flex:1;min-width:0"><b style="font-size:13px">${esc(x.name||'')}</b></div>
+   <div style="text-align:right;line-height:1.15"><b>${x.score}</b> <span class="sub" style="font-size:10px">pts</span><div class="sub" style="font-size:10px">${x.exchanges} échange${x.exchanges>1?'s':''}</div></div>
+ </div>`).join('')||'<p class="sub">Aucun membre pour l\'instant.</p>';
+ return `
+   ${H('sparkles','Membres')}${grid(k(u.total,'Total'),k(u.active,'Actifs'),k(u.active_7d,'Actifs 7j'),k(u.new_today,'Nouv. auj.'),k(u.new_7d,'Nouv. 7j'),k(u.new_30d,'Nouv. 30j'),k(u.restricted,'Restreints'),k(u.banned,'Bannis'))}
+   ${H('flame','Inscriptions — 14 jours')}<div class="card mt8"><div class="dbars">${bars}</div></div>
+   ${H('target','Échanges')}${grid(k(m.completed,'Complétés'),k(m.completed_today,'Auj.'),k(m.completed_7d,'7 jours'),k(m.in_progress,'En cours'),k(m.expired,'Expirés'),k(m.failed,'Échoués'))}
+   ${H('shield','Score de confiance')}${grid(k(t.avg,'Moyenne'),k(t.max,'Max'),k(t.elite,'Élite 80+'),k(t.fiable,'Fiable'),k(t.standard,'Standard'),k(t.risque,'À risque'))}
+   ${H('check','Comptes sociaux')}${grid(k(a.verified,'Vérifiés'),k(a.pending,'En attente'),k(a.rejected,'Rejetés'),k(a.tiktok,'TikTok'),k(a.instagram,'Instagram'))}
+   ${H('gift','Parrainage & objectifs')}${grid(k(rf.linked,'Parrainages'),k(rf.credited,'Crédités'),k(tg.tiktok,'Obj. TikTok'),k(tg.instagram,'Obj. Insta'))}
+   ${H('flag','Signalements')}${grid(k(r.open,'Ouverts'),k(r.confirmed,'Confirmés'),k(r.rejected,'Rejetés'))}
+   ${H('trophy','Top 10 membres')}<div class="mt8">${tops}</div>`;
+}
 function vAdmin(){
  const pend=S.admin.pend.slice(0,30).map(a=>`<div class="admin-item">
    <div><b>${esc(pfLabel(a.platform))} · @${esc(a.username)}</b> <span class="sub">(${esc(a.profiles?.display_name||'')})</span></div>
@@ -1047,7 +1071,8 @@ function vAdmin(){
  return `<div class="wrap">
    <button class="btn ghost small" onclick="go('swipe')" style="display:inline-flex;align-items:center;gap:4px">${ic('back',13)} Retour</button>
    <h2 class="mt16">${ic('wrench',17)} Admin</h2>
-   <h2 class="mt16" style="font-size:15px;color:var(--muted)">Comptes à examiner (facultatif)</h2>
+   ${adminDash(S.admin.stats)}
+   <h2 class="mt24" style="font-size:15px;color:var(--muted)">Comptes à examiner (facultatif)</h2>
    <p class="sub" style="font-size:12px;margin-bottom:8px">Plus aucune file d'attente : personne n'est bloqué à l'inscription. Cette liste ne sert qu'à jeter un œil si tu le souhaites.</p>${pend}
    <h2 class="mt24" style="font-size:15px;color:var(--muted)">Signalements ouverts</h2>${reps}
  </div>`;
